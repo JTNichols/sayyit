@@ -18,22 +18,17 @@ m<sub>n</sub> -> the mean score of the post after *n* replies.
 m_n = \frac{1}{n} \sum_{i=1}^n r_i  
 ```  
 where:  
-n -> the total number of responses to the post, and ```math  r_i \in \{-1, +1\} ```
+n -> the total number of responses to the post, and 
+```math  r_i \in \{-1, +1\} ```  
 
 When S<sub>n</sub> is negative the absolute value is displayed as a left score.  
 
-tanh function produces a score that approaches -1 (left) or 1 (right) asymptotically 
-This allows for a more nuanced scoring system where posts can be strongly left or right
+tanh function produces a score that approaches -1 (left) or 1 (right) asymptotically, creating a 
+more nuanced scoring system where posts can be strongly left or right
 without being completely one-sided.  
-
-  
- The mean score m<sub>n</sub> is calculated as:  
-
-
-(left = −1, right = +1).
  
-
- The effect is a score that looks like the following graph, where the x-axis is the mean score of the post and the y-axis is the final score of the post.  
+### Result
+The effect is a score profile looks like the following graph, where the x-axis is the mean score of the post and the y-axis is the final score of the post.  
   ![tanh score shape](~/../images/tanh_score_shape.png)
 
 ## User Scoring  
