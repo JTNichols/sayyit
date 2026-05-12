@@ -25,9 +25,13 @@ This allows for a more nuanced scoring system where posts can be strongly left o
 
 $$
 m_n = \frac{1}{n} \sum_{i=1}^n r_i  
+$$
 n -> the total number of responses to the post.
-r_i∈{−1,+1} (left = −1, right = +1).
-$$  
+$$
+r_i \in \{-1, +1\}
+$$
+ (left = −1, right = +1).
+ 
 
  The effect is a score that looks like the following graph, where the x-axis is the mean score of the post and the y-axis is the final score of the post.  
   ![tanh score shape](~/../images/tanh_score_shape.png)
