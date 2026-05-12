@@ -20,8 +20,17 @@ This allows for a more nuanced scoring system where posts can be strongly left o
 
   
 m<sub>n</sub> -> the mean score of the post after *n* replies. The mean score is calculated as:  
->  m<sub>n</sub> = (L + R) / (|L| + R)  
-
+>  m<sub>n</sub> = (L + R) / (|L| + R)
+\(m_n = \frac{1}{n} \sum_{i=1}^n r_i\)
+```math
+m_n = \frac{1}{n} \sum_{i=1}^n r_i
+```
+$$
+m_n = \frac{1}{n} \sum_{i=1}^n r_i
+$$
+<p>
+  m<sub>n</sub> = (1 / n) &sum;<sub>i=1</sub><sup>n</sup> r<sub>i</sub>
+</p>
 Where:  
  L -> the sum of all left responses. Each response adds -1.  
  R -> the number of all right responses. Each response adds +1.  
@@ -36,11 +45,11 @@ This allows users to be ranked on a left/right scale based on the content they p
 
 Where:  
 S<sub>u</sub> -> User Score. This is a combination of a users posts scores and a confidence value based on the number and direction of replies to their posts.
-> C<sub>u</sub> = (1−e−<sup>λn</sup>)∣m<sub>n</sub>​|  
+> C<sub>u</sub> = (1−e<sup>-λn</sup>)∣m<sub>n</sub>​|  
 
 C<sub>u</sub> -> Confidence score. This is a value between 0 and 1 that represents how confident we are in the user's score based on the number of posts they have made and the direction of those posts.  
 
-λ -> a constant that determines how quickly the confidence score increases with the number of posts. **Currently set to 0.1**, but this can be adjusted to make the confidence score more or less sensitive to the number of posts. A higher λ value will make the confidence score increase more quickly with each post.
-Confidence score based on the number and direction of replies to a users posts.  
+λ -> a constant that determines how quickly the confidence score increases with the number of posts. 
+**Currently set to 0.1**.
   
  **This means a user can switch between being a "lefty" and a "righty"** based on replies to content they post, and their score will reflect the overall lean of their contributions to the platform.
