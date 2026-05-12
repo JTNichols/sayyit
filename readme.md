@@ -12,6 +12,7 @@ S_n = \tanh(k \cdot m_n)  \times 100\%
 $$
 S<sub>n</sub> -> the score of a post after *n* responses, as a percentage.  
 k -> a constant that determines how quickly the score changes with responses. **Currently set to 0.1**, but this can be adjusted to make the scoring more or less sensitive to responses. A higher k value will make the score change more quickly with each response.
+m<sub>n</sub> -> the mean score of the post after *n* replies.  
 
 When S<sub>n</sub> is negative the absolute value is displayed as a left score.  
 
@@ -20,7 +21,7 @@ tanh ensures the score approaches -1 or 1 asymptotically, meaning that as more r
 This allows for a more nuanced scoring system where posts can be strongly left or right without being completely one-sided.  
 
   
-m<sub>n</sub> -> the mean score of the post after *n* replies. The mean score is calculated as:  
+ The mean score m<sub>n</sub> is calculated as:  
 
 $$
 m_n = \frac{1}{n} \sum_{i=1}^n r_i  
