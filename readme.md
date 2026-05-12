@@ -7,7 +7,7 @@ You can choose to see only left, only right, or a mix of both. A true town squar
 ## Post Scoring
 Posts are scored on a left/right scale based upon responses. If a post receives more left responses, it will be scored more left. If it receives more right responses, it will be scored more right.  
 The equation for a post's score is:  
-$$
+$$  
 S_n = \tanh(k \cdot m_n)  \times 100\%
 $$
 S<sub>n</sub> -> the score of a post after *n* responses, as a percentage.  
@@ -23,11 +23,11 @@ This allows for a more nuanced scoring system where posts can be strongly left o
   
  The mean score m<sub>n</sub> is calculated as:  
 
-$$
+$$  
 m_n = \frac{1}{n} \sum_{i=1}^n r_i  
 $$
 n -> the total number of responses to the post.
-$$
+$$  
 r_i \in \{-1, +1\}
 $$
  (left = −1, right = +1).
