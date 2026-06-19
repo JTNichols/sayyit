@@ -18,9 +18,9 @@ m<sub>n</sub> -> the mean score of the post after *n* replies.
 m_n = \frac{1}{n} \sum_{i=1}^n r_i  
 ```  
 where:
-n -> the total number of responses to the post, and 
+n -> the total number of responses to the post, and
 ```math
-r_i in \{-1, +1\} 
+r_i  in  \{-1, +1\} 
 ```
 
 When S<sub>n</sub> is negative the absolute value is displayed as a left score.  
