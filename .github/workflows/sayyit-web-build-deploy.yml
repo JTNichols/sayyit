@@ -1,0 +1,89 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy ASP.Net Core app to Azure Web App - sayyit-dev-web
+
+on:
+  push:
+    branches:
+      - env/dev
+  workflow_dispatch:
+  
+env:
+  RESOURCE_GROUP: sayyit_rg1
+  ENV_NAME: dev
+  BASE_NAME: sayyit
+  WEBAPP_NAME: sayyit-dev-web
+  KEYVAULT_NAME: sayyit-dev-kv
+  KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
+
+      - name: dotnet publish
+        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/myapp
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-app
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get publish profile from Key Vault
+        id: get-publish-profile
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: latest
+          inlineScript: |
+            $publishProfile = az keyvault secret show `
+              --vault-name "${{ env.KEYVAULT_NAME }}" `
+              --name "${{ env.KEYVAULT_SECRET_NAME }}" `
+              --query value -o tsv
+
+            if ([string]::IsNullOrWhiteSpace($publishProfile)) {
+              throw "Key Vault secret '${{ env.KEYVAULT_SECRET_NAME }}' was not found or is empty."
+            }
+
+            "publish_profile<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            $publishProfile | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: 'Production'
+          package: .
+          publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
