@@ -21,6 +21,16 @@ env:
   KEYVAULT_NAME: sayyit-dev-kv
   KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
 
+# Note: This workflow uses GitHub Actions OIDC federated credentials created by
+# CreateEntraApp-ServPrinc-GhFedCred.ps1. Ensure the following repository
+# secrets are set to the values the script printed:
+#   AZURE_CLIENT_ID      -> Application (client) ID from the app registration
+#   AZURE_TENANT_ID      -> Tenant ID
+#   AZURE_SUBSCRIPTION_ID-> Subscription ID
+# The workflow must have permissions.id-token: write (set above) and the push
+# must come from the branch configured for the federated credential
+# (refs/heads/env/dev).
+
 jobs:
   build:
     runs-on: windows-latest
@@ -50,6 +60,9 @@ jobs:
   deploy:
     runs-on: windows-latest
     needs: build
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       - name: Download artifact from build job

@@ -31,8 +31,9 @@ if ($Repo -notmatch '^[^/\s]+/[^/\s]+$') {
 }
 
 $Branch = "env/$EnvironmentName"
-$AppName = "sayyit-iac-github-actions-$EnvironmentName"
-$Subject = "repo:$Repo:ref:refs/heads/$Branch"
+$AppName = "sayyit-github-actions-$EnvironmentName"
+# Use concatenation to avoid PowerShell parsing/scope ambiguity with multiple colons
+$Subject = 'repo:' + $Repo + ':ref:refs/heads/' + $Branch
 Write-Host "Setting up OIDC identity for repo '$Repo' branch '$Branch' on resource group '$ResourceGroupName'..."
 Write-Host "Expected federated credential subject: $Subject"
 # Get subscription and tenant from current az login context
@@ -118,34 +119,62 @@ Write-Host "Service principal objectId: $SpObjectId"
 # Create or reuse federated credential JSON
 # subject: repo:OWNER/REPO:ref:refs/heads/BRANCH
 # -----------------------------
-$federatedCredentialName = "github-$($Branch.Replace('/','-'))"
-
-$federatedJson = @"
-{
-  "name": "$federatedCredentialName",
-  "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "$Subject",
-  "description": "GitHub Actions OIDC for $Repo branch $Branch",
-  "audiences": [
-    "api://AzureADTokenExchange"
-  ]
-}
-"@
+$federatedCredentialName = "github-$($Repo.Replace('/','-'))-$($Branch.Replace('/','-'))"
 
 $fcPath = ".\federated-credential.json"
+
+# Build federated credential payload as a PowerShell object and serialize to JSON
+$federatedObj = [ordered]@{
+    name        = $federatedCredentialName
+    issuer      = 'https://token.actions.githubusercontent.com'
+    subject     = $Subject
+    description = "GitHub Actions OIDC for $Repo branch $Branch"
+    audiences   = @('api://AzureADTokenExchange')
+}
+
+$federatedJson = $federatedObj | ConvertTo-Json -Depth 4
 $federatedJson | Set-Content -Path $fcPath -Encoding UTF8
 
+# Debug output to help diagnose subject/serialization issues
+Write-Host "Debug: Repo=[$Repo] Branch=[$Branch] Subject=[$Subject]"
+Write-Host "Debug: Federated credential JSON content:" 
+Get-Content $fcPath -Raw | Write-Host
+
 Write-Host "Creating federated credential on app '$AppObjectId' for subject $Subject ..."
+Write-Host "Listing federated credentials for app '$AppObjectId' and verifying subject matches expected assertion..."
 
-$existingFederatedCredential = az ad app federated-credential list `
-    --id $AppObjectId `
-    --query "[?name=='$federatedCredentialName'] | [0].id" `
-    -o tsv
+# Get federated credentials JSON and parse safely
+$fedsJson = az ad app federated-credential list --id $AppObjectId -o json 2>$null
+$feds = @()
+if ($fedsJson) {
+    try {
+        $feds = $fedsJson | ConvertFrom-Json
+    }
+    catch {
+        Write-Host "Warning: unable to parse federated credentials JSON. Treating as empty list."
+        $feds = @()
+    }
+}
 
-if ($existingFederatedCredential) {
-    Write-Host "Using existing federated credential '$federatedCredentialName'."
+# Look for an existing credential whose subject exactly equals the expected subject
+$matching = @()
+if ($feds) {
+    $matching = $feds | Where-Object { $_.subject -eq $Subject }
+}
+
+if ($matching -and $matching.Count -gt 0) {
+    $matchedName = $matching[0].name
+    Write-Host "Found existing federated credential with matching subject: $matchedName"
 }
 else {
+    # If a credential exists with the same name but different subject, warn the user
+    $sameName = $null
+    if ($feds) { $sameName = $feds | Where-Object { $_.name -eq $federatedCredentialName } }
+    if ($sameName) {
+        Write-Host "Note: a federated credential named '$federatedCredentialName' exists but its subject does not match the expected subject '$Subject'."
+        Write-Host "Creating a new federated credential with the correct subject."
+    }
+
     Write-Host "Creating federated credential on app '$AppObjectId' for subject $Subject ..."
     az ad app federated-credential create `
         --id $AppObjectId `
