@@ -1,5 +1,7 @@
-# This script sets up a GitHub Actions OIDC identity for Azure deployment in a specific environment.
-# It only needs to be run once per repo.
+# This script sets up a GitHub Actions OIDC identity for Azure deployment in a specific repo and branch in the 'dev' environment.
+# It only needs to be run once per repo/branch combination.
+# It requires an existing MS Entra application nameed "sayyit-github-actions-dev" and a resource group named "sayyit_rg1" in the current Azure subscription.
+# TODO: For a different environment, a new MS Entra application should be created.
 
 # It performs these steps:
 

@@ -15,10 +15,10 @@ permissions:
 
 env:
   RESOURCE_GROUP: sayyit_rg1
-  ENV_NAME: dev
+  ENV_NAME: ${{ replace(github.ref, 'refs/heads/env/', '') }}
   BASE_NAME: sayyit
-  WEBAPP_NAME: sayyit-dev-web
-  KEYVAULT_NAME: sayyit-dev-kv
+  WEBAPP_NAME: ${{ format('{0}-{1}-web', env.BASE_NAME, env.ENV_NAME) }}
+  KEYVAULT_NAME: ${{ format('{0}-{1}-kv', env.BASE_NAME, env.ENV_NAME) }}
   KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
 
 # Note: This workflow uses GitHub Actions OIDC federated credentials created by
