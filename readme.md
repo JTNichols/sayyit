@@ -1,4 +1,4 @@
-﻿# Sayyit.com.
+﻿# Sayyit.com..
 Like Reddit and X, but users are given left/right scores that allow them to be the only moderators.  
   
 No hidden algorithms (or hidden elites) determinine what is seen.  
