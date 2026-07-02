@@ -18,6 +18,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{02EA68
 		C:\Users\Jason\Desktop\tanh_score_shape.png = C:\Users\Jason\Desktop\tanh_score_shape.png
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F8B96-AC34-4E5C-8BE0-7075AFDFBD79}"
+	ProjectSection(SolutionItems) = preProject
+		CreateEntraApp-ServPrinc-GhFedCred.ps1 = CreateEntraApp-ServPrinc-GhFedCred.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,6 +40,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9C2F8B96-AC34-4E5C-8BE0-7075AFDFBD79} = {8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {851C644E-3450-42C8-96F0-5BC8AFDCE7A6}

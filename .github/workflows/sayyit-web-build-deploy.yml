@@ -8,7 +8,11 @@ on:
     branches:
       - env/dev
   workflow_dispatch:
-  
+
+permissions:
+  id-token: write
+  contents: read
+
 env:
   RESOURCE_GROUP: sayyit_rg1
   ENV_NAME: dev
