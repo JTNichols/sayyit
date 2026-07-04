@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - env/dev
+    paths:
+      - 'src/**'
+      - '.github/workflows/sayyit-code-build-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,8 +43,16 @@ jobs:
       kv_secret_name: ${{ steps.set-vars.outputs.kv_secret_name }}
 
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          cache: true
+      - run: dotnet restore Sayyit.sln
+      - run: dotnet build Sayyit.sln --configuration Release --no-restore
+      - run: dotnet test Sayyit.sln --configuration Release --no-build
+      - run: dotnet publish src/Sayyit.Api/Sayyit.Api.csproj -c Release -o ${{ runner.temp }}/app --no-build
+  
       - name: Compute environment names
         id: set-vars
         run: |
