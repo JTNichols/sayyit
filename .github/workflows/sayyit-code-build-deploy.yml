@@ -15,11 +15,8 @@ permissions:
 
 env:
   RESOURCE_GROUP: sayyit_rg1
-  ENV_NAME: ${{ replace(github.ref, 'refs/heads/env/', '') }}
   BASE_NAME: sayyit
-  WEBAPP_NAME: ${{ format('{0}-{1}-web', env.BASE_NAME, env.ENV_NAME) }}
-  KEYVAULT_NAME: ${{ format('{0}-{1}-kv', env.BASE_NAME, env.ENV_NAME) }}
-  KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
+  # ENV_NAME, WEBAPP_NAME and KEYVAULT_NAME are computed at runtime in the build job
 
 # Note: This workflow uses GitHub Actions OIDC federated credentials created by
 # CreateEntraApp-ServPrinc-GhFedCred.ps1. Ensure the following repository
@@ -36,9 +33,35 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read #This is required for actions/checkout
+    outputs:
+      env_name: ${{ steps.set-vars.outputs.env_name }}
+      webapp_name: ${{ steps.set-vars.outputs.webapp_name }}
+      kv_name: ${{ steps.set-vars.outputs.kv_name }}
+      kv_secret_name: ${{ steps.set-vars.outputs.kv_secret_name }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Compute environment names
+        id: set-vars
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          ref=${GITHUB_REF#refs/heads/}
+          if [[ "$ref" == env/* ]]; then
+            env_name=${ref#env/}
+          else
+            env_name=$ref
+          fi
+
+          webapp_name="${BASE_NAME}-${env_name}-web"
+          kv_name="${BASE_NAME}-${env_name}-kv"
+          kv_secret_name="${BASE_NAME}-${env_name}-web-publish-profile"
+
+          echo "env_name=$env_name" >> $GITHUB_OUTPUT
+          echo "webapp_name=$webapp_name" >> $GITHUB_OUTPUT
+          echo "kv_name=$kv_name" >> $GITHUB_OUTPUT
+          echo "kv_secret_name=$kv_secret_name" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
@@ -71,6 +94,7 @@ jobs:
   deploy:
     runs-on: windows-latest
     needs: build
+
     permissions:
       id-token: write
       contents: read
@@ -96,16 +120,19 @@ jobs:
       - name: Get publish profile from Key Vault
         id: get-publish-profile
         uses: azure/powershell@v2
+        env:
+          KEYVAULT_NAME: ${{ needs.build.outputs.kv_name }}
+          KEYVAULT_SECRET_NAME: ${{ needs.build.outputs.kv_secret_name }}
         with:
           azPSVersion: latest
           inlineScript: |
             $publishProfile = az keyvault secret show `
-              --vault-name "${{ env.KEYVAULT_NAME }}" `
-              --name "${{ env.KEYVAULT_SECRET_NAME }}" `
+              --vault-name $env:KEYVAULT_NAME `
+              --name $env:KEYVAULT_SECRET_NAME `
               --query value -o tsv
 
             if ([string]::IsNullOrWhiteSpace($publishProfile)) {
-              throw "Key Vault secret '${{ env.KEYVAULT_SECRET_NAME }}' was not found or is empty."
+              throw "Key Vault secret '$env:KEYVAULT_SECRET_NAME' was not found or is empty."
             }
 
             "publish_profile<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -116,7 +143,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.WEBAPP_NAME }}
+          app-name: ${{ needs.build.outputs.webapp_name }}
           slot-name: 'Production'
           package: .
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
