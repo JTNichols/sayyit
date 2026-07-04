@@ -68,6 +68,9 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      - name: Restore NuGet packages
+        run: dotnet restore
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
@@ -83,7 +86,7 @@ jobs:
       - name: Build database project (DACPAC)
         run: |
           echo Building Sayyit.Db SQL project
-          msbuild "Sayyit.Db\Sayyit.Db.sqlproj" /t:Build /p:Configuration=Release
+          dotnet msbuild "Sayyit.Db/Sayyit.Db.sqlproj" -t:Build -p:Configuration=Release
 
       - name: Upload DB DACPAC artifact
         uses: actions/upload-artifact@v4
