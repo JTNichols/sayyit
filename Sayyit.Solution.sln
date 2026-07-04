@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.7.11925.98 stable
+VisualStudioVersion = 18.7.11925.98
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sayyit.Web", "Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj", "{ABB6F543-20C0-4194-B94A-53C789596858}"
 EndProject
@@ -11,7 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.github\copilot-instructions.md = .github\copilot-instructions.md
 		readme.md = readme.md
-		.github\workflows\sayyit-web-build-deploy.yml = .github\workflows\sayyit-web-build-deploy.yml
+		.github\workflows\sayyit-code-build-deploy.yml = .github\workflows\sayyit-code-build-deploy.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F
 	ProjectSection(SolutionItems) = preProject
 		CreateEntraApp-ServPrinc-GhFedCred.ps1 = CreateEntraApp-ServPrinc-GhFedCred.ps1
 	EndProjectSection
+EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Sayyit.Db", "Sayyit.Db\Sayyit.Db.sqlproj", "{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,12 @@ Global
 		{22625622-60D5-487D-8AFC-B96187143531}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22625622-60D5-487D-8AFC-B96187143531}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22625622-60D5-487D-8AFC-B96187143531}.Release|Any CPU.Build.0 = Release|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
