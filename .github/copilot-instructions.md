@@ -74,9 +74,7 @@ SQL and data access
 
     Design schema and queries for auditability, moderation transparency, and future analytics.
 
-    Treat left/right scoring, moderation votes, and user actions as domain records that may need traceability.
-
-    Prefer explicit migrations and reversible changes.
+    Treat left/right scoring, moderation votes, and user actions as domain records that may need traceability. 
 
     Avoid destructive data operations unless clearly requested.
 
@@ -125,7 +123,7 @@ Security guidance
 
     Never hardcode secrets, connection strings, publish profiles, client IDs, or tenant IDs in source files.
 
-    Assume secrets come from secure configuration or Azure Key Vault.
+    Assume secrets come from Azure Key Vault alone.
 
     Follow least-privilege access patterns for app identities and deployment identities.
 
@@ -137,7 +135,7 @@ Security guidance
 
 Azure and infrastructure guidance
 
-The infrastructure repository uses GitHub Actions with Azure federated identity login and Bicep deployments. Generated infrastructure-related changes should remain compatible with that workflow.
+    The infrastructure repository uses GitHub Actions with Azure federated identity login and Bicep deployments. Generated infrastructure-related changes should remain compatible with that workflow.
 
     Keep infrastructure changes in JTNichols/sayyit-iac aligned with Bicep-driven deployment.
 
@@ -149,7 +147,7 @@ The infrastructure repository uses GitHub Actions with Azure federated identity 
 
     Prefer Azure-native configuration and identity features over manual secret distribution.
 
-Based on the current infrastructure files, the environment includes an App Service plan, a web app, and a Key Vault with RBAC enabled, and the web app uses a system-assigned managed identity while the deployment principal is granted Key Vault secret management rights.
+    The environment includes an App Service plan, a web app, and a Key Vault with RBAC enabled, and the web app uses a system-assigned managed identity while the deployment principal is granted Key Vault secret management rights.
 GitHub Actions guidance
 
     Keep workflow changes minimal and explicit.

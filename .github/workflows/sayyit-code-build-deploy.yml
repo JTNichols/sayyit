@@ -57,6 +57,17 @@ jobs:
           name: .net-app
           path: ${{env.DOTNET_ROOT}}/myapp
 
+      - name: Build database project (DACPAC)
+        run: |
+          echo Building Sayyit.Db SQL project
+          msbuild "Sayyit.Db\Sayyit.Db.sqlproj" /t:Build /p:Configuration=Release
+
+      - name: Upload DB DACPAC artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: Sayyit.Db\bin\Release\*.dacpac
+
   deploy:
     runs-on: windows-latest
     needs: build
@@ -69,6 +80,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
+
+      - name: Download DB DACPAC artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sayyit-db-dacpac
 
       - name: Azure login
         uses: azure/login@v2
