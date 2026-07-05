@@ -18,9 +18,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F8B96-AC34-4E5C-8BE0-7075AFDFBD79}"
 	ProjectSection(SolutionItems) = preProject
 		CreateEntraApp-ServPrinc-GhFedCred.ps1 = CreateEntraApp-ServPrinc-GhFedCred.ps1
+		..\SayyitInfrastructure\infra\main.bicep = ..\SayyitInfrastructure\infra\main.bicep
 	EndProjectSection
-EndProject
-Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Sayyit.Db", "Sayyit.Db\Sayyit.Db.sqlproj", "{5164ECDA-2B6B-463A-AB5D-256946DF11C1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sayyit.web", "sayyit.web\sayyit.web.csproj", "{FB382DAC-ED90-4695-81BD-2E22330994D8}"
 EndProject
@@ -30,12 +29,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5164ECDA-2B6B-463A-AB5D-256946DF11C1}.Release|Any CPU.Deploy.0 = Release|Any CPU
 		{FB382DAC-ED90-4695-81BD-2E22330994D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FB382DAC-ED90-4695-81BD-2E22330994D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB382DAC-ED90-4695-81BD-2E22330994D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
