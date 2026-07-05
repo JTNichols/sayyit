@@ -9,7 +9,7 @@ on:
       - env/dev
     paths:
       - 'src/**'
-      - '.github/workflows/sayyit-code-build-deploy.yml'
+      - '.github/workflows/sayyit-code-action.yml'
   workflow_dispatch:
 
 permissions:
@@ -42,15 +42,19 @@ jobs:
       kv_secret_name: ${{ steps.set-vars.outputs.kv_secret_name }}
 
     steps:
-      - uses: actions/checkout@v4 
+      - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '7.0'
           cache: true
-      - run: dotnet restore Sayyit.sln
-      - run: dotnet build Sayyit.sln --configuration Release --no-restore
-      - run: dotnet test Sayyit.sln --configuration Release --no-build
-      - run: dotnet publish src/Sayyit.Api/Sayyit.Api.csproj -c Release -o ${{ runner.temp }}/app --no-build
+      - name: Restore solution
+        run: dotnet restore Sayyit.sln
+      - name: Build solution
+        run: dotnet build Sayyit.sln --configuration Release --no-restore
+      - name: Run tests
+        run: dotnet test Sayyit.sln --configuration Release --no-build
+      - name: Publish API artifact
+        run: dotnet publish src/Sayyit.Api/Sayyit.Api.csproj -c Release -o ${{ runner.temp }}/app --no-build
   
       - name: Compute environment names
         id: set-vars
@@ -73,36 +77,11 @@ jobs:
           echo "kv_secret_name=$kv_secret_name" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Set up .NET Core
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.x'
-
-      - name: Restore NuGet packages
-        run: dotnet restore
-
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
-
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
-
-      - name: Upload artifact for deployment job
+      - name: Upload API artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
-
-      - name: Build database project (DACPAC)
-        run: |
-          echo Building Sayyit.Db SQL project
-          dotnet msbuild "Sayyit.Db/Sayyit.Db.sqlproj" -t:Build -p:Configuration=Release
-
-      - name: Upload DB DACPAC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sayyit-db-dacpac
-          path: Sayyit.Db\bin\Release\*.dacpac
+          path: ${{ runner.temp }}/app
 
   deploy:
     runs-on: windows-latest
