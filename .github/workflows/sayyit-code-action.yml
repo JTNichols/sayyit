@@ -53,9 +53,7 @@ jobs:
       - name: Build solution
         run: dotnet build Sayyit.Solution.sln --configuration Release --no-restore
       - name: Run tests
-        run: dotnet test Sayyit.Solution.sln --configuration Release --no-build
-      - name: Publish API artifact
-        run: dotnet publish src/Sayyit.Api/Sayyit.Api.csproj -c Release -o ${{ runner.temp }}/app --no-build
+        run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
 
   
       - name: Compute environment names
@@ -78,31 +76,6 @@ jobs:
           Add-Content -Path $env:GITHUB_OUTPUT -Value "webapp_name=$webapp_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_name=$kv_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_secret_webpublish=$kv_secret_webpublish"
-
-      - name: Upload API artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: .net-app
-          path: ${{ runner.temp }}/app
-
-  deploy:
-    runs-on: windows-latest
-    needs: build
-
-    permissions:
-      id-token: write
-      contents: read
-    
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-
-      - name: Download DB DACPAC artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sayyit-db-dacpac
 
       - name: Azure login
         uses: azure/login@v2
@@ -132,12 +105,12 @@ jobs:
             "publish_profile<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             $publishProfile | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
+              
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ needs.build.outputs.webapp_name }}
           slot-name: 'Production'
-          package: .
+          package: ${{ runner.temp }}/webapp 
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
