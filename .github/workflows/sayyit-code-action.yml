@@ -11,6 +11,16 @@ on:
       - 'src/**'
       - '.github/workflows/sayyit-code-action.yml'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
 
 permissions:
   id-token: write
@@ -60,12 +70,21 @@ jobs:
         id: set-vars
         shell: powershell
         run: |
+          Write-Host "GITHUB_EVENT_NAME=$env:GITHUB_EVENT_NAME"
           Write-Host "GITHUB_REF=$env:GITHUB_REF"
-          $ref = $env:GITHUB_REF -replace '^refs/heads/',''
-          if ($ref -like 'env/*') {
-            $env_name = $ref -replace '^env/',''
+
+          # Determine environment: use manual input if workflow_dispatch, else derive from branch
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $env_name = "${{ github.event.inputs.environment }}"
+            Write-Host "Using manual trigger environment: $env_name"
           } else {
-            $env_name = $ref
+            $ref = $env:GITHUB_REF -replace '^refs/heads/',''
+            if ($ref -like 'env/*') {
+              $env_name = $ref -replace '^env/',''
+            } else {
+              $env_name = $ref
+            }
+            Write-Host "Using branch-derived environment: $env_name"
           }
 
           $webapp_name = "$($env:BASE_NAME)-$env_name-web"
@@ -75,6 +94,9 @@ jobs:
           Add-Content -Path $env:GITHUB_OUTPUT -Value "env_name=$env_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "webapp_name=$webapp_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_name=$kv_name"
+
+          # Mask the secret name so it isn't logged
+          Write-Output "::add-mask::$kv_secret_webpublish"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_secret_webpublish=$kv_secret_webpublish"
 
       - name: Azure login
