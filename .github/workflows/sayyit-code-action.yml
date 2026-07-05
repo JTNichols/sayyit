@@ -66,7 +66,7 @@ jobs:
       - name: Run tests
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
       - name: Publish web app
-        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
+        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-restore
 
 
       - name: Compute environment names
