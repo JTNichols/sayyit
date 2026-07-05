@@ -1,9 +1,0 @@
-﻿CREATE TABLE [dbo].[Sayyers](
-    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
-    Username NVARCHAR(50) NOT NULL UNIQUE,
-    DisplayName NVARCHAR(50) NULL,
-    EmailHash NVARCHAR(256) NULL, -- do not store raw emails
-    SayyerScore DECIMAL(9,4) NOT NULL DEFAULT 0.0, 
-    IsSuspended BIT NOT NULL DEFAULT 0,
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
-);

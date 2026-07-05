@@ -24,8 +24,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F
 		CreateEntraApp-ServPrinc-GhFedCred.ps1 = CreateEntraApp-ServPrinc-GhFedCred.ps1
 	EndProjectSection
 EndProject
-Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Sayyit.Db", "Sayyit.Db\Sayyit.Db.sqlproj", "{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,12 +38,6 @@ Global
 		{22625622-60D5-487D-8AFC-B96187143531}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22625622-60D5-487D-8AFC-B96187143531}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22625622-60D5-487D-8AFC-B96187143531}.Release|Any CPU.Build.0 = Release|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{592BDFE7-294A-48AD-B2EA-4CA95C4413FD}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

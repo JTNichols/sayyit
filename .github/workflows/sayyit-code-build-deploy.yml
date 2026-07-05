@@ -28,8 +28,7 @@ env:
 #   AZURE_TENANT_ID      -> Tenant ID
 #   AZURE_SUBSCRIPTION_ID-> Subscription ID
 # The workflow must have permissions.id-token: write (set above) and the push
-# must come from the branch configured for the federated credential
-# (refs/heads/env/dev).
+# must come from the branch configured for the federated credential e.g. refs/heads/env/dev).
 
 jobs:
   build:
