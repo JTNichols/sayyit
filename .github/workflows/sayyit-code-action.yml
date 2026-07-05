@@ -39,7 +39,7 @@ jobs:
       env_name: ${{ steps.set-vars.outputs.env_name }}
       webapp_name: ${{ steps.set-vars.outputs.webapp_name }}
       kv_name: ${{ steps.set-vars.outputs.kv_name }}
-      kv_secret_name: ${{ steps.set-vars.outputs.kv_secret_name }}
+      kv_secret_webpublish: ${{ steps.set-vars.outputs.kv_secret_webpublish }}
 
     steps:
       - uses: actions/checkout@v4
@@ -72,12 +72,12 @@ jobs:
 
           $webapp_name = "$($env:BASE_NAME)-$env_name-web"
           $kv_name = "$($env:BASE_NAME)-$env_name-kv"
-          $kv_secret_name = "$($env:BASE_NAME)-$env_name-web-publish-profile"
+          $kv_secret_webpublish = "$($env:BASE_NAME)-$env_name-web-publish-profile"
 
           Add-Content -Path $env:GITHUB_OUTPUT -Value "env_name=$env_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "webapp_name=$webapp_name"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_name=$kv_name"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_secret_name=$kv_secret_name" 
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_secret_webpublish=$kv_secret_webpublish"
 
       - name: Upload API artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -116,7 +116,7 @@ jobs:
         uses: azure/powershell@v2
         env:
           KEYVAULT_NAME: ${{ needs.build.outputs.kv_name }}
-          KEYVAULT_SECRET_NAME: ${{ needs.build.outputs.kv_secret_name }}
+          KEYVAULT_SECRET_NAME: ${{ needs.build.outputs.kv_secret_webpublish }}
         with:
           azPSVersion: latest
           inlineScript: |
