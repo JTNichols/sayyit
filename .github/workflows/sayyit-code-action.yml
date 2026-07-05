@@ -65,8 +65,10 @@ jobs:
         run: dotnet build Sayyit.Solution.sln --configuration Release --no-restore
       - name: Run tests
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
+      - name: Publish web app
+        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
 
-  
+
       - name: Compute environment names
         id: set-vars
         shell: powershell
@@ -113,8 +115,8 @@ jobs:
         id: get-publish-profile
         uses: azure/powershell@v2
         env:
-          KEYVAULT_NAME: ${{ needs.build.outputs.kv_name }}
-          KEYVAULT_SECRET_NAME: ${{ needs.build.outputs.kv_secret_webpublish }}
+          KEYVAULT_NAME: ${{ steps.set-vars.outputs.kv_name }}
+          KEYVAULT_SECRET_NAME: ${{ steps.set-vars.outputs.kv_secret_webpublish }}
         with:
           azPSVersion: latest
           inlineScript: |
