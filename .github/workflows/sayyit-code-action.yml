@@ -8,7 +8,7 @@ on:
     branches:
       - env/dev
     paths:
-      - 'src/**'
+      - 'Sayyit.Web/**'
       - '.github/workflows/sayyit-code-action.yml'
   workflow_dispatch:
     inputs:
@@ -66,7 +66,7 @@ jobs:
       - name: Run tests
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
       - name: Publish web app
-        run: dotnet publish .\sayyit.web\wayyit.web\sayyit.web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
+        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp
 
 
 
@@ -93,8 +93,6 @@ jobs:
 
           $webapp_name = "$($env:BASE_NAME)-$env_name-web"
           $kv_name = "$($env:BASE_NAME)-$env_name-kv"
-
-          Write-Host ($env:BASE_NAME + "-" + $env_name + "-" + "web-publish-profile")
           $kv_secret_webpublish = $env:BASE_NAME + "-" + $env_name + "-" + "web-publish-profile"
 
           Add-Content -Path $env:GITHUB_OUTPUT -Value "env_name=$env_name"
@@ -138,7 +136,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ needs.build.outputs.webapp_name }}
+          app-name: ${{ steps.set-vars.outputs.webapp_name }}
           slot-name: 'Production'
           package: ${{ runner.temp }}/webapp 
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}

@@ -7,6 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		.github\copilot-instructions.md = .github\copilot-instructions.md
+		lastWorkingWorkflow.txt = lastWorkingWorkflow.txt
 		readme.md = readme.md
 		.github\workflows\sayyit-code-action.yml = .github\workflows\sayyit-code-action.yml
 	EndProjectSection
@@ -22,7 +23,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F
 		..\SayyitInfrastructure\infra\main.bicep = ..\SayyitInfrastructure\infra\main.bicep
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sayyit.web", "sayyit.web\sayyit.web.csproj", "{FB382DAC-ED90-4695-81BD-2E22330994D8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sayyit.Web", "sayyit.web\Sayyit.Web.csproj", "{FB382DAC-ED90-4695-81BD-2E22330994D8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
