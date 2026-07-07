@@ -67,8 +67,11 @@ jobs:
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
       # - name: Publish Blazor WebAssembly app
       #   run: dotnet publish Sayyit.Solution.sln -c Release -o ${{ runner.temp }}/webapp --no-restore
+
       # following only publishes the web app, but throws an error saying no 'main.cs' can be found. I dunno. Keeping for future reference.
       # maybe publish requires either a full solution of both a webapp and an API?
+      - name: Restore web app project
+        run: dotnet restore Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj
       - name: Publish web app
         run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-restore
 
