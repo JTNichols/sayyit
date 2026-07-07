@@ -65,8 +65,8 @@ jobs:
         run: dotnet build Sayyit.Solution.sln --configuration Release --no-restore
       - name: Run tests
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
-      - name: Publish web app
-        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp
+      - name: Publish Blazor WebAssembly app
+        run: dotnet publish Sayyit.Solution.sln -c Release -o ${{ runner.temp }}/webapp
 
 
 
