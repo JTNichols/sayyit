@@ -100,14 +100,13 @@ jobs:
           dotnet-version: '10.0.x'
           cache: true
           cache-dependency-path: |
-            Sayyit.Web/packages.lock.json
-            Sayyit.Web/Sayyit.Web.Client/packages.lock.json
+            Sayyit.Web/packages.lock.json 
 
       - name: Build web app
         run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release 
 
       - name: Publish Blazor WebAssembly app
-        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
+        run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
 
       - name: Upload web app artifact
         uses: actions/upload-artifact@v4
