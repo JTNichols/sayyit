@@ -58,14 +58,10 @@ jobs:
           cache-dependency-path: |
             Sayyit.Web/packages.lock.json
             Sayyit.Web/Sayyit.Web.Client/packages.lock.json
-
-      - name: Restore solution
-        run: dotnet restore Sayyit.Solution.sln 
-      - name: Restore solution
-        run: dotnet restore Sayyit.Solution.sln 
+              
+      # Web App
       - name: Build web app
         run: dotnet build Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj --configuration Release --no-restore 
-      # Web App
       - name: Publish Blazor WebAssembly app
         run: dotnet publish Sayyit.Solution.sln -c Release -o ${{ runner.temp }}/webapp --no-restore
       
@@ -75,8 +71,7 @@ jobs:
       #   run: dotnet restore Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj
       # - name: Publish web app
       #   run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-restore
-      
-      # - name: Publish API 
+       
       - name: Build database project (DACPAC)
         run: dotnet msbuild Sayyit.Db/Sayyit.Db.sqlproj -t:Build -p:Configuration=Release
 
