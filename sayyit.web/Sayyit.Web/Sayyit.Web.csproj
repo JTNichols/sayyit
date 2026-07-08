@@ -9,7 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Sayyit.Web.Client\Sayyit.Web.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.14" />
-    <PackageReference Include="Microsoft.Data.Tools.Msbuild" Version="16.0.62004.28040" />
   </ItemGroup>
 
 </Project>
