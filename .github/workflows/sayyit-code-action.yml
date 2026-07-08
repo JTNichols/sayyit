@@ -104,7 +104,7 @@ jobs:
             Sayyit.Web/Sayyit.Web.Client/packages.lock.json
 
       - name: Build web app
-        run: dotnet build Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj --configuration Release 
+        run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release 
 
       - name: Publish Blazor WebAssembly app
         run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
