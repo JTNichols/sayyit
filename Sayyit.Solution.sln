@@ -9,7 +9,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.github\copilot-instructions.md = .github\copilot-instructions.md
 		lastWorkingWorkflow.txt = lastWorkingWorkflow.txt
 		readme.md = readme.md
-		sayyit-db-action.yml = sayyit-db-action.yml
 		.github\workflows\sayyit-web-action.yml = .github\workflows\sayyit-web-action.yml
 	EndProjectSection
 EndProject
