@@ -9,7 +9,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.github\copilot-instructions.md = .github\copilot-instructions.md
 		lastWorkingWorkflow.txt = lastWorkingWorkflow.txt
 		readme.md = readme.md
-		.github\workflows\sayyit-code-action.yml = .github\workflows\sayyit-code-action.yml
+		sayyit-db-action.yml = sayyit-db-action.yml
+		.github\workflows\sayyit-web-action.yml = .github\workflows\sayyit-web-action.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
@@ -23,7 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F
 		..\SayyitInfrastructure\infra\main.bicep = ..\SayyitInfrastructure\infra\main.bicep
 	EndProjectSection
 EndProject
-Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Sayyit.Db", "Sayyit.Db\Sayyit.Db.sqlproj", "{2D493DC0-9E2B-4615-8149-92D9C1A96534}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sayyit.Web", "Sayyit.Web\Sayyit.Web.csproj", "{08712598-3143-4AC0-9CDB-1256F191E859}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,12 +32,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2D493DC0-9E2B-4615-8149-92D9C1A96534}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{08712598-3143-4AC0-9CDB-1256F191E859}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08712598-3143-4AC0-9CDB-1256F191E859}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08712598-3143-4AC0-9CDB-1256F191E859}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08712598-3143-4AC0-9CDB-1256F191E859}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

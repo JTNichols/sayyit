@@ -1,0 +1,148 @@
+
+# Docs for the SqlPackage DACPAC deployment: https://learn.microsoft.com/sql/tools/sqlpackage/sqlpackage
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Sayyit.Db to Azure SQL Database - sayyit-dev-db
+
+on:
+  push:
+    branches:
+      - env/dev
+    paths:
+      - 'Sayyit.Db/**'
+      - '.github/workflows/sayyit-db-action.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: sayyit_rg1
+  ENV_NAME: dev
+  BASE_NAME: sayyit
+  KEYVAULT_NAME: sayyit-dev-kv
+  KEYVAULT_SECRET_NAME: sqlServerAdministratorPassword
+  SQL_SERVER_NAME: sayyit-dev-sqlServer
+  SQL_DATABASE_NAME: sayyit-dev-db
+  SQL_ADMIN_LOGIN: sqladminuser
+
+# Note: This workflow uses GitHub Actions OIDC federated credentials created by
+# CreateEntraApp-ServPrinc-GhFedCred.ps1. Ensure the following repository
+# secrets are set to the values the script printed:
+#   AZURE_CLIENT_ID      -> Application (client) ID from the app registration
+#   AZURE_TENANT_ID      -> Tenant ID
+#   AZURE_SUBSCRIPTION_ID-> Subscription ID
+# These are the same repository secrets used by sayyit-web-action.yml.
+# The workflow must have permissions.id-token: write (set above) and the push
+# must come from the branch configured for the federated credential
+# (refs/heads/env/dev).
+#
+# The SQL Server administrator password is never stored in GitHub secrets. It
+# lives only in the sayyit-dev-kv Key Vault (secret name above) and is fetched
+# at deploy time using the same OIDC-authenticated identity.
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build DACPAC
+        run: dotnet build Sayyit.Db\Sayyit.Db.sqlproj --configuration Release
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: Sayyit.Db/bin/Release/*.dacpac
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SQL admin password from Key Vault
+        id: get-sql-password
+        uses: azure/powershell@v2
+        with:
+          azPSVersion: latest
+          inlineScript: |
+            $sqlPassword = az keyvault secret show `
+              --vault-name "${{ env.KEYVAULT_NAME }}" `
+              --name "${{ env.KEYVAULT_SECRET_NAME }}" `
+              --query value -o tsv
+            if ([string]::IsNullOrWhiteSpace($sqlPassword)) {
+              throw "Key Vault secret '${{ env.KEYVAULT_SECRET_NAME }}' was not found or is empty."
+            }
+
+            # Mask the password so it never appears in logs
+            Write-Output "::add-mask::$sqlPassword"
+
+            "sql_password<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            $sqlPassword | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Deploy DACPAC to Azure SQL Database
+        shell: powershell
+        env:
+          SQL_ADMIN_PASSWORD: ${{ steps.get-sql-password.outputs.sql_password }}
+        run: |
+          # Locate DACPAC
+          $dacpac = Get-ChildItem -Path . -Recurse -Filter *.dacpac | Select-Object -First 1
+          if (-not $dacpac) {
+            Write-Error "DACPAC not found."
+            exit 1
+          }
+
+          Write-Host "Found DACPAC: $($dacpac.FullName)"
+
+          # Find sqlpackage (should be in PATH on windows-latest)
+          $sqlpackage = "sqlpackage"
+          try {
+            & $sqlpackage /Version | Out-Null
+          } catch {
+            Write-Error "sqlpackage.exe not found in PATH."
+            exit 1
+          }
+
+          $targetServer = "${{ env.SQL_SERVER_NAME }}.database.windows.net"
+
+          # Deploy the DACPAC
+          & $sqlpackage /Action:Publish `
+            /SourceFile:$($dacpac.FullName) `
+            /TargetServerName:$targetServer `
+            /TargetDatabaseName:"${{ env.SQL_DATABASE_NAME }}" `
+            /TargetUser:"${{ env.SQL_ADMIN_LOGIN }}" `
+            /TargetPassword:$env:SQL_ADMIN_PASSWORD `
+            /p:BlockOnPossibleDataLoss=false `
+            /p:TrustServerCertificate=true
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "DACPAC deployment succeeded."
+          } else {
+            Write-Error "DACPAC deployment failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+          }

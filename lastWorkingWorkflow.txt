@@ -1,23 +1,4 @@
-Skip to content
-JTNichols
-sayyit
-Repository navigation
-Code
-Issues
-Pull requests
-Agents
-Actions
-Projects
-Wiki
-Security and quality
-Insights
-Settings
-Build and deploy ASP.Net Core app to Azure Web App - sayyit-dev-web
-updated workflow to use fed cred #3
-All jobs
-Run details
-Workflow file for this run
-.github/workflows/sayyit-web-build-deploy.yml at 0770910
+ 
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
