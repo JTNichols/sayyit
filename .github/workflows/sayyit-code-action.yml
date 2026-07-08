@@ -41,8 +41,9 @@ env:
 # must come from the branch configured for the federated credential e.g. refs/heads/env/dev).
 
 jobs:
-  build:
-    runs-on: windows-latest 
+  # Compute environment variables used by both web and db jobs
+  compute-env:
+    runs-on: windows-latest
     outputs:
       env_name: ${{ steps.set-vars.outputs.env_name }}
       webapp_name: ${{ steps.set-vars.outputs.webapp_name }}
@@ -50,35 +51,6 @@ jobs:
       kv_secret_webpublish: ${{ steps.set-vars.outputs.kv_secret_webpublish }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-          cache: true
-          cache-dependency-path: |
-            Sayyit.Web/packages.lock.json
-            Sayyit.Web/Sayyit.Web.Client/packages.lock.json
-              
-      # Web App
-      - name: Build web app
-        run: dotnet build Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj --configuration Release 
-      
-      # following only publishes the web app, but throws an error saying no 'main.cs' can be found. I dunno. Keeping for future reference.
-      # maybe publish requires either a full solution of both OR a webapp and an API?
-      # - name: Restore web app project
-      #   run: dotnet restore Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj
-      # - name: Publish web app
-      #   run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-restore
-       
-      - name: Build database project (DACPAC)
-        run: dotnet msbuild Sayyit.Db/Sayyit.Db.sqlproj -t:Build -p:Configuration=Release
-
-      - name: Publish (upload) DACPAC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sayyit-db-dacpac
-          path: Sayyit.Db/bin/Release/*.dacpac
-
       - name: Compute environment names
         id: set-vars
         shell: powershell
@@ -112,6 +84,70 @@ jobs:
           Write-Output "::add-mask::$kv_secret_webpublish"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "kv_secret_webpublish=$kv_secret_webpublish"
 
+  build-web:
+    runs-on: windows-latest
+    needs: compute-env
+    outputs:
+      env_name: ${{ needs.compute-env.outputs.env_name }}
+      webapp_name: ${{ needs.compute-env.outputs.webapp_name }}
+      kv_name: ${{ needs.compute-env.outputs.kv_name }}
+      kv_secret_webpublish: ${{ needs.compute-env.outputs.kv_secret_webpublish }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            Sayyit.Web/packages.lock.json
+            Sayyit.Web/Sayyit.Web.Client/packages.lock.json
+
+      - name: Build web app
+        run: dotnet build Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj --configuration Release 
+
+      - name: Publish Blazor WebAssembly app
+        run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-build
+
+      - name: Upload web app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-web-package
+          path: ${{ runner.temp }}/webapp
+
+  build-db:
+    runs-on: windows-latest
+    needs: compute-env
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build database project (DACPAC)
+        run: dotnet msbuild Sayyit.Db/Sayyit.Db.sqlproj -t:Build -p:Configuration=Release
+
+      - name: Publish (upload) DACPAC artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: Sayyit.Db/bin/Release/*.dacpac
+
+  deploy-web:
+    runs-on: windows-latest
+    needs: build-web
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download web app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sayyit-web-package
+          path: ${{ runner.temp }}/webapp
+
       - name: Azure login
         uses: azure/login@v2
         with:
@@ -123,8 +159,8 @@ jobs:
         id: get-publish-profile
         uses: azure/powershell@v2
         env:
-          KEYVAULT_NAME: ${{ steps.set-vars.outputs.kv_name }}
-          KEYVAULT_SECRET_NAME: ${{ steps.set-vars.outputs.kv_secret_webpublish }}
+          KEYVAULT_NAME: ${{ needs.build-web.outputs.kv_name }}
+          KEYVAULT_SECRET_NAME: ${{ needs.build-web.outputs.kv_secret_webpublish }}
         with:
           azPSVersion: latest
           inlineScript: |
@@ -140,19 +176,19 @@ jobs:
             "publish_profile<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             $publishProfile | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-              
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ steps.set-vars.outputs.webapp_name }}
+          app-name: ${{ needs.build-web.outputs.webapp_name }}
           slot-name: 'Production'
           package: ${{ runner.temp }}/webapp 
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
 
   deploy-db:
     runs-on: windows-latest
-    needs: build
+    needs: [compute-env, build-db]
     permissions:
       id-token: write
       contents: read
@@ -172,6 +208,9 @@ jobs:
 
       - name: Deploy DACPAC to Azure SQL
         shell: powershell
+        env:
+          ENV_NAME: ${{ needs.compute-env.outputs.env_name }}
+          KV_NAME: ${{ needs.compute-env.outputs.kv_name }}
         run: |
           # Locate DACPAC
           $dacpac = Get-ChildItem -Path . -Recurse -Filter *.dacpac | Select-Object -First 1
@@ -191,13 +230,13 @@ jobs:
             exit 1
           }
 
-          $sqlServerName = "${{ needs.build.outputs.kv_name }}".Replace("-kv", "-sqlserver")
-          $sqlDatabaseName = "${{ needs.build.outputs.env_name }}-db"
+          $sqlServerName = $env:KV_NAME.Replace("-kv", "-sqlserver")
+          $sqlDatabaseName = "$env:ENV_NAME-db"
           $targetServer = "$sqlServerName.database.windows.net"
 
           # Read SQL admin password from Key Vault (if stored)
           $sqlAdminPassword = az keyvault secret show `
-            --vault-name "${{ needs.build.outputs.kv_name }}" `
+            --vault-name $env:KV_NAME `
             --name "sqlServerAdministratorPassword" `
             --query value -o tsv 2>$null
 
