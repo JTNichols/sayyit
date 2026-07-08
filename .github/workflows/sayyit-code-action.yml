@@ -65,19 +65,28 @@ jobs:
         run: dotnet build Sayyit.Solution.sln --configuration Release --no-restore
       - name: Run tests
         run: dotnet test Sayyit.Solution.sln --configuration Release --no-build 
+      # Web App
       - name: Publish Blazor WebAssembly app
         run: dotnet publish Sayyit.Solution.sln -c Release -o ${{ runner.temp }}/webapp --no-restore
-
+      
       # following only publishes the web app, but throws an error saying no 'main.cs' can be found. I dunno. Keeping for future reference.
       # maybe publish requires either a full solution of both OR a webapp and an API?
       # - name: Restore web app project
       #   run: dotnet restore Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj
       # - name: Publish web app
       #   run: dotnet publish Sayyit.Web\Sayyit.Web\Sayyit.Web.csproj -c Release -o ${{ runner.temp }}/webapp --no-restore
-
+      
       # - name: Publish API
       #   run: dotnet publish src/Sayyit.Api/Sayyit.Api.csproj -c Release -o ${{ runner.temp }}/api
 
+      - name: Build database project (DACPAC)
+        run: dotnet msbuild Sayyit.Db/Sayyit.Db.sqlproj -t:Build -p:Configuration=Release
+
+      - name: Upload DACPAC artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: Sayyit.Db/bin/Release/*.dacpac
 
       - name: Compute environment names
         id: set-vars
@@ -149,3 +158,77 @@ jobs:
           slot-name: 'Production'
           package: ${{ runner.temp }}/webapp 
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
+
+  deploy-db:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download DACPAC artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy DACPAC to Azure SQL
+        shell: powershell
+        run: |
+          # Locate DACPAC
+          $dacpac = Get-ChildItem -Path . -Recurse -Filter *.dacpac | Select-Object -First 1
+          if (-not $dacpac) {
+            Write-Error "DACPAC not found."
+            exit 1
+          }
+
+          Write-Host "Found DACPAC: $($dacpac.FullName)"
+
+          # Find sqlpackage (should be in PATH on windows-latest)
+          $sqlpackage = "sqlpackage"
+          try {
+            & $sqlpackage /Version | Out-Null
+          } catch {
+            Write-Error "sqlpackage.exe not found in PATH."
+            exit 1
+          }
+
+          $sqlServerName = "${{ needs.build.outputs.kv_name }}".Replace("-kv", "-sqlserver")
+          $sqlDatabaseName = "${{ needs.build.outputs.env_name }}-db"
+          $targetServer = "$sqlServerName.database.windows.net"
+
+          # Read SQL admin password from Key Vault (if stored)
+          $sqlAdminPassword = az keyvault secret show `
+            --vault-name "${{ needs.build.outputs.kv_name }}" `
+            --name "sqlServerAdministratorPassword" `
+            --query value -o tsv 2>$null
+
+          if ([string]::IsNullOrWhiteSpace($sqlAdminPassword)) {
+            Write-Warning "SQL admin password not found in Key Vault. Skipping DACPAC deployment."
+            exit 0
+          }
+
+          # Deploy the DACPAC
+          & $sqlpackage /Action:Publish `
+            /SourceFile:$($dacpac.FullName) `
+            /TargetServerName:$targetServer `
+            /TargetDatabaseName:$sqlDatabaseName `
+            /TargetUser:"sqladminuser" `
+            /TargetPassword:$sqlAdminPassword `
+            /p:BlockOnPossibleDataLoss=false `
+            /p:TrustServerCertificate=true
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "DACPAC deployment succeeded."
+          } else {
+            Write-Error "DACPAC deployment failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+          }
+
