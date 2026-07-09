@@ -1,4 +1,5 @@
-name: Build and deploy SQL DACPAC - Sayyit.Db
+name: Sayyit.Db
+
 
 on:
   push:
@@ -38,17 +39,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-          cache: true
-
-      - name: Restore SQL project
-        run: dotnet restore Sayyit.Db/Sayyit.Db.sqlproj
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
       - name: Build SQL project
-        run: dotnet build Sayyit.Db/Sayyit.Db.sqlproj -c Release --no-restore
+        shell: pwsh
+        run: |
+          msbuild Sayyit.Db/Sayyit.Db.sqlproj `
+            /t:Build `
+            /p:Configuration=Release
+
+      - name: Verify DACPAC output
+        shell: pwsh
+        run: |
+          $dacpac = Get-ChildItem -Path Sayyit.Db/bin/Release -Recurse -Filter *.dacpac | Select-Object -First 1
+          if (-not $dacpac) {
+            throw "No DACPAC was produced under Sayyit.Db/bin/Release."
+          }
+          Write-Host "DACPAC found: $($dacpac.FullName)"
 
       - name: Upload DACPAC artifact
         uses: actions/upload-artifact@v4
