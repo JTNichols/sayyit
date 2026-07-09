@@ -57,5 +57,15 @@
   <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <ItemGroup>
     <Folder Include="Properties" />
+    <Folder Include="auth\" />
+    <Folder Include="auth\Tables\" />
+    <Folder Include="Security\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Build Include="auth\Tables\Users.sql" />
+    <Build Include="auth\Tables\UserStatusHistory.sql" />
+    <Build Include="auth\Tables\UserBlock.sql" />
+    <Build Include="auth\Tables\UserBan.sql" />
+    <Build Include="Security\auth.sql" />
   </ItemGroup>
 </Project>
