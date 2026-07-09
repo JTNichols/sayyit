@@ -1,4 +1,4 @@
-name: Build and deploy SQL DACPAC - Sayyit.Db
+name: ...DB...
 
 on:
   push:
