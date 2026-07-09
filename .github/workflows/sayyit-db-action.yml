@@ -82,7 +82,7 @@ jobs:
           }
 
           $kvName = "${env:BASENAME}-$envName-kv"
-          $sqlServerName = "${env:BASENAME}-$envName-sqlServer"
+          $sqlServerName = "${env:BASENAME}-$envName-sqlserver"
           $sqlDatabaseName = "${env:BASENAME}-$envName-db"
 
           Add-Content -Path $env:GITHUB_OUTPUT -Value "envname=$envName"
