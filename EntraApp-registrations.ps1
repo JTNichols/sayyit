@@ -102,8 +102,7 @@ Write-Host "Ensuring service principal for app '$AppId' exists..."
 $existingSp = az ad sp list `
     --filter "appId eq '$AppId'" `
     --query "[0].id" `
-    -o tsv
-    Hujo063406
+    -o tsv 
 if ($existingSp) {
     $SpObjectId = $existingSp
     Write-Host "Using existing service principal."
@@ -219,12 +218,13 @@ foreach ($role in $rolesToEnsure) {
 
 
 # -----------------------------
-# Section 6: Create web app sayyit-web-$EnvironmentName
-# This is the app registration for the Blazor WebAssembly frontend.
-# It is registered in the same tenant but is separate from the GitHub
-# Actions deployment identity created in sections 1-5.
+# Section 6: Create (or reuse) the sayyit-web-$EnvironmentName app registration.
+# This is the Blazor WebAssembly frontend. Registered as a single-tenant app.
+# The SPA platform and redirect URI are configured in Section 7 via Graph PATCH.
 # -----------------------------
-$WebAppName = "sayyit-web-$EnvironmentName"
+$WebAppName     = "sayyit-web-$EnvironmentName"
+$SpaRedirectUri = "https://localhost/authentication/login-callback"
+
 Write-Host ""
 Write-Host "Ensuring Microsoft Entra app registration '$WebAppName' exists..."
 
@@ -239,6 +239,9 @@ if ($existingWebApp -and $existingWebApp.appId) {
     Write-Host "Using existing app registration '$WebAppName'."
 }
 else {
+    # Create the app registration with no platform configuration yet.
+    # The SPA redirect URI is set separately in Section 7 via Graph PATCH,
+    # because az ad app create does not support the SPA platform type directly.
     $WebAppId = az ad app create `
         --display-name $WebAppName `
         --sign-in-audience AzureADMyOrg `
@@ -251,16 +254,99 @@ else {
     $WebAppObjectId = az ad app show `
         --id $WebAppId `
         --query id -o tsv
+
+    if (-not $WebAppObjectId) {
+        throw "Failed to retrieve object ID for '$WebAppName'."
+    }
 }
 
-# -----------------------------
-# Output values
-# -----------------------------
 Write-Host "Web AppId:       $WebAppId"
 Write-Host "Web AppObjectId: $WebAppObjectId"
 
+# -----------------------------
+# Section 7: Configure $WebAppName as a SPA with a localhost redirect URI.
+#
+# Blazor WebAssembly uses the SPA platform type in Entra ID, which enables
+# the PKCE-based auth code flow without a client secret. The redirect URI
+# must exactly match what the running app sends to the /authorize endpoint.
+#
+# The SPA redirect URI is set via the `spa` property, not the `web` property
+# (which is for server-side / implicit flow apps). Using the wrong platform
+# type would silently break PKCE enforcement.
+#
+# https://localhost is registered here for local development. Before go-live,
+# add the Azure-hosted URI (e.g.
+# https://sayyit-dev-web.azurewebsites.net/authentication/login-callback)
+# by re-running this script or patching via `az rest` using the same pattern.
+# -----------------------------
 Write-Host ""
-Write-Host "Done. Use these values for GitHub Actions secrets:"
+Write-Host "Configuring '$WebAppName' as a SPA with redirect URI '$SpaRedirectUri'..."
+
+# Read the current SPA redirect URIs so the update is idempotent - existing
+# URIs are preserved and the new one is only added if not already present.
+$currentSpaUrisJson = az ad app show `
+    --id $WebAppId `
+    --query "spa.redirectUris" `
+    -o json 2>$null
+
+$currentSpaUris = @()
+if ($currentSpaUrisJson) {
+    try {
+        $parsed = $currentSpaUrisJson | ConvertFrom-Json
+        if ($parsed) { $currentSpaUris = @($parsed) }
+    }
+    catch {
+        Write-Host "Warning: could not parse existing SPA redirect URIs. Treating as empty."
+    }
+}
+
+if ($currentSpaUris -contains $SpaRedirectUri) {
+    Write-Host "SPA redirect URI '$SpaRedirectUri' is already registered. Skipping."
+}
+else {
+    # Merge the new URI into the existing list and write to a temp file.
+    # Passing --body inline risks PowerShell quote-escaping corruption; writing
+    # to a file and using the @path syntax guarantees Graph receives valid JSON.
+    $mergedUris  = $currentSpaUris + $SpaRedirectUri
+    $spaPatchObj = @{ spa = @{ redirectUris = $mergedUris } }
+    $spaPatchPath = ".\spa-patch.json"
+    $spaPatchObj | ConvertTo-Json -Depth 4 | Set-Content -Path $spaPatchPath -Encoding UTF8
+
+    Write-Host "Debug: SPA PATCH body:"
+    Get-Content $spaPatchPath -Raw | Write-Host
+
+    az rest `
+        --method PATCH `
+        --uri "https://graph.microsoft.com/v1.0/applications/$WebAppObjectId" `
+        --headers "Content-Type=application/json" `
+        --body "@$spaPatchPath"
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to set SPA redirect URI on '$WebAppName'. " +
+              "Verify the signed-in identity has Application.ReadWrite.All or Application.ReadWrite.OwnedBy."
+    }
+
+    Write-Host "SPA redirect URI registered successfully."
+}
+
+# Verify the final state.
+$verifiedUrisJson = az ad app show `
+    --id $WebAppId `
+    --query "spa.redirectUris" `
+    -o json 2>$null
+
+$verifiedUris = @()
+if ($verifiedUrisJson) {
+    try { $verifiedUris = @($verifiedUrisJson | ConvertFrom-Json) } catch {}
+}
+
+Write-Host "SPA redirect URIs now registered for '$WebAppName':"
+if ($verifiedUris.Count -eq 0) {
+    Write-Host "  (none returned - verify manually in the Azure portal)"
+}
+else {
+    $verifiedUris | ForEach-Object { Write-Host "  $_" }
+}
 Write-Host "  AZURE_CLIENT_ID      = $AppId"
 Write-Host "  AZURE_TENANT_ID      = $TenantId"
 Write-Host "  AZURE_SUBSCRIPTION_ID= $SubscriptionId"
@@ -273,6 +359,7 @@ Write-Host "Web app registration:"
 Write-Host "  Name:                $WebAppName"
 Write-Host "  Web AppId:           $WebAppId"
 Write-Host "  Web AppObjectId:     $WebAppObjectId"
+Write-Host "  SPA RedirectUri:     $SpaRedirectUri"
 Write-Host ""
 Write-Host "Remember to configure your workflow with:"
 Write-Host "  permissions:"
