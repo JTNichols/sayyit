@@ -20,11 +20,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{02EA68
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{9C2F8B96-AC34-4E5C-8BE0-7075AFDFBD79}"
 	ProjectSection(SolutionItems) = preProject
-		CreateEntraApp-ServPrinc-GhFedCred.ps1 = CreateEntraApp-ServPrinc-GhFedCred.ps1
+		EntraApp-registrations.ps1 = EntraApp-registrations.ps1
 		..\SayyitInfrastructure\infra\main.bicep = ..\SayyitInfrastructure\infra\main.bicep
 	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sayyit.Web", "Sayyit.Web\Sayyit.Web.csproj", "{08712598-3143-4AC0-9CDB-1256F191E859}"
 EndProject
 Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Sayyit.Db", "Sayyit.Db\Sayyit.Db.sqlproj", "{7607A45C-B59B-46D0-949C-D694A5FDB8A4}"
 EndProject
@@ -34,10 +32,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{08712598-3143-4AC0-9CDB-1256F191E859}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{08712598-3143-4AC0-9CDB-1256F191E859}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{08712598-3143-4AC0-9CDB-1256F191E859}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{08712598-3143-4AC0-9CDB-1256F191E859}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7607A45C-B59B-46D0-949C-D694A5FDB8A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7607A45C-B59B-46D0-949C-D694A5FDB8A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7607A45C-B59B-46D0-949C-D694A5FDB8A4}.Debug|Any CPU.Deploy.0 = Debug|Any CPU

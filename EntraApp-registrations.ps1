@@ -1,19 +1,12 @@
-# This script sets up a GitHub Actions OIDC identity for Azure deployment in a specific repo and branch in the 'dev' environment.
+# This script runs commands against an existing EntraID external configuration tenant in the domain sayyit.onmicrosoft.com.
+# Section 1. sets up a GitHub Actions OIDC identity for Azure deployment in a specific repo and branch in the 'dev' environment.
 # It only needs to be run once per repo/branch combination.
-# It requires an existing MS Entra application nameed "sayyit-github-actions-dev" and a resource group named "sayyit_rg1" in the current Azure subscription.
-# TODO: For a different environment, a new MS Entra application should be created.
+# It requires an existing AZ CLI login, an existing MS Entra tenant and an existing resource group in that same domain/subscription.
+# For a different environment, a new resource group should be created
+ 
 
-# It performs these steps:
-
-# Validates the repository name and Azure login context.
-# Checks that the target resource group exists.
-# Creates or reuses a Microsoft Entra app registration for the environment.
-# Creates or reuses a service principal for that app.
-# Creates or reuses a federated credential so GitHub Actions can exchange its OIDC token for an Azure access token.
-# Ensures the service principal has the required Azure RBAC roles at the subscription scope, such as Contributor and User Access Administrator.
-# Prints the resulting app ID, tenant ID, subscription ID, and service principal object ID so they can be used as GitHub Actions secrets.
-# In short, it automates the setup needed for secure GitHub-to-Azure authentication using federated credentials.
-# .\CreateEntraApp-ServPrinc-GhFedCred.ps1 -Repo "JTNichols/sayyit-iac" -EnvironmentName "dev" -ResourceGroupName "sayyit_rg1"
+# to run, log into Azure CLI (az login) and then run following command in PowerShell, replacing the parameters w/ new repo and/or environment
+# .\EntraApp-registrations.ps1 -Repo "JTNichols/sayyit-iac" -EnvironmentName "dev" -ResourceGroupName "sayyit_rg1"
 
 
 param(
@@ -26,7 +19,16 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ResourceGroupName # e.g. "sayyit_rg1"
 )
+# -------------------------------------------------------------------------
+# Section 1: Validate inputs and Azure context
+# 
+# Validates the repository name and Azure login context.
+# Checks that the target resource group exists.
+# Creates or reuses a Microsoft Entra app registration for the environment.
+# Creates or reuses a service principal for that app.
 # Verify Repo name
+# -------------------------------------------------------------------------
+
 $Repo = $Repo.Trim()
 if ($Repo -notmatch '^[^/\s]+/[^/\s]+$') {
     throw "Repo must be in the format 'OWNER/REPO', for example 'JTNichols/sayyit-iac'."
@@ -60,9 +62,9 @@ Write-Host "Using subscription: $SubscriptionId"
 Write-Host "Using tenant:      $TenantId"
 Write-Host "Scope:             $RgScope"
 
-# -----------------------------
-# Create or reuse app registration
-# -----------------------------
+# ---------------------------------------------------------------------------------------
+# Section 2:  Create (or reuse) app registration for GitHub federated credential
+# ---------------------------------------------------------------------------------------
 Write-Host "Ensuring Microsoft Entra app registration '$AppName' exists..."
 
 $existingApp = az ad app list `
@@ -92,16 +94,16 @@ else {
 Write-Host "AppId:       $AppId"
 Write-Host "AppObjectId: $AppObjectId"
 
-# -----------------------------
-# Create or reuse service principal
-# -----------------------------
+# ---------------------------------------------------------------------------------------
+# Section 3: Create service principal (SP) for the Github Federated Credential app if it doesn't exist
+# ---------------------------------------------------------------------------------------
 Write-Host "Ensuring service principal for app '$AppId' exists..."
 
 $existingSp = az ad sp list `
     --filter "appId eq '$AppId'" `
     --query "[0].id" `
     -o tsv
-
+    Hujo063406
 if ($existingSp) {
     $SpObjectId = $existingSp
     Write-Host "Using existing service principal."
@@ -118,8 +120,9 @@ if (-not $SpObjectId) {
 Write-Host "Service principal objectId: $SpObjectId"
 
 # -----------------------------
-# Create or reuse federated credential JSON
-# subject: repo:OWNER/REPO:ref:refs/heads/BRANCH
+# Section 4: Create federated credential as JSON, if it doesn't exist
+# credential subject will be of form: repo:OWNER/REPO:ref:refs/heads/BRANCH, so for 
+# dev it's repo:JTNIchols/sayyit:ref:refs/heads/env/dev
 # -----------------------------
 $federatedCredentialName = "github-$($Repo.Replace('/','-'))-$($Branch.Replace('/','-'))"
 
@@ -184,7 +187,7 @@ else {
 }
 
 # -----------------------------
-# Assign Azure RBAC roles at SUBSCRIPTION scope, if missing
+# Section 5: Assign Azure RBAC roles at SUBSCRIPTION scope, if they don't exist.
 # Contributor + User Access Administrator
 # -----------------------------
 $rolesToEnsure = @(
@@ -211,28 +214,51 @@ foreach ($role in $rolesToEnsure) {
             --scope $role.Scope
     }
 }
+ 
 
-# # -----------------------------
-# # Assign Azure RBAC roles at RG scope
-# # Contributor + User Access Administrator
-# # -----------------------------
-# Write-Host "Assigning 'Contributor' role to service principal at scope $RgScope ..."
-# az role assignment create `
-#     --assignee-object-id $SpObjectId `
-#     --assignee-principal-type ServicePrincipal `
-#     --role "Contributor" `
-#     --scope $RgScope
 
-# Write-Host "Assigning 'User Access Administrator' role to service principal at scope $RgScope ..."
-# az role assignment create `
-#     --assignee-object-id $SpObjectId `
-#     --assignee-principal-type ServicePrincipal `
-#     --role "User Access Administrator" `
-#     --scope $RgScope
 
 # -----------------------------
-# Output values for GitHub secrets
+# Section 6: Create web app sayyit-web-$EnvironmentName
+# This is the app registration for the Blazor WebAssembly frontend.
+# It is registered in the same tenant but is separate from the GitHub
+# Actions deployment identity created in sections 1-5.
 # -----------------------------
+$WebAppName = "sayyit-web-$EnvironmentName"
+Write-Host ""
+Write-Host "Ensuring Microsoft Entra app registration '$WebAppName' exists..."
+
+$existingWebApp = az ad app list `
+    --filter "displayName eq '$WebAppName'" `
+    --query "[0].{appId:appId,id:id}" `
+    -o json | ConvertFrom-Json
+
+if ($existingWebApp -and $existingWebApp.appId) {
+    $WebAppId       = $existingWebApp.appId
+    $WebAppObjectId = $existingWebApp.id
+    Write-Host "Using existing app registration '$WebAppName'."
+}
+else {
+    $WebAppId = az ad app create `
+        --display-name $WebAppName `
+        --sign-in-audience AzureADMyOrg `
+        --query appId -o tsv
+
+    if (-not $WebAppId) {
+        throw "Failed to create app registration '$WebAppName'."
+    }
+
+    $WebAppObjectId = az ad app show `
+        --id $WebAppId `
+        --query id -o tsv
+}
+
+# -----------------------------
+# Output values
+# -----------------------------
+Write-Host "Web AppId:       $WebAppId"
+Write-Host "Web AppObjectId: $WebAppObjectId"
+
 Write-Host ""
 Write-Host "Done. Use these values for GitHub Actions secrets:"
 Write-Host "  AZURE_CLIENT_ID      = $AppId"
@@ -243,8 +269,14 @@ Write-Host "App object ID:         $AppObjectId"
 Write-Host "SP object ID:          $SpObjectId"
 Write-Host "Scope used:            $RgScope"
 Write-Host ""
+Write-Host "Web app registration:"
+Write-Host "  Name:                $WebAppName"
+Write-Host "  Web AppId:           $WebAppId"
+Write-Host "  Web AppObjectId:     $WebAppObjectId"
+Write-Host ""
 Write-Host "Remember to configure your workflow with:"
 Write-Host "  permissions:"
 Write-Host "    id-token: write"
 Write-Host "    contents: read"
 Write-Host "and use azure/login@v2 with these secrets."
+
