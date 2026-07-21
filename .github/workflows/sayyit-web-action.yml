@@ -53,12 +53,12 @@ jobs:
       - name: Restore
         run: dotnet restore Sayyit.Web\Sayyit.Web.csproj
 
-      - name: Build with dotnet
-        run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release 
+      #- name: Build with dotnet
+        #run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release 
 
       - name: dotnet publish
         shell: pwsh
-        run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "$env:RUNNER_TEMP\myapp" --no-build
+        run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "$env:RUNNER_TEMP\myapp"
         #run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
 
       - name: Verify processed index.html
