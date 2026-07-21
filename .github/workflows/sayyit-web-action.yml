@@ -74,6 +74,22 @@ jobs:
             throw "Processed blazor.webassembly fingerprinted script not found in published index.html"
           }
 
+      - name: Verify framework runtime files
+        shell: pwsh
+        run: |
+          $framework = Join-Path $env:RUNNER_TEMP "myapp\wwwroot\_framework"
+          if (-not (Test-Path $framework)) { throw "_framework folder not found: $framework" }
+
+          $wasmFiles = Get-ChildItem $framework -Filter *.wasm -File
+          if (-not $wasmFiles -or $wasmFiles.Count -eq 0) {
+            throw "No .wasm runtime files found in published _framework folder"
+          }
+
+          $bootJs = Get-ChildItem $framework -Filter "blazor.webassembly*.js" -File
+          if (-not $bootJs) {
+            throw "No blazor.webassembly boot script found in published _framework folder"
+          }
+
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
