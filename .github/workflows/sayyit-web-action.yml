@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{ runner.temp }}/myapp/wwwroot
+          path: ${{ runner.temp }}/myapp
 
   deploy:
     runs-on: windows-latest
@@ -124,5 +124,5 @@ jobs:
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           slot-name: 'Production'
-          package: ${{ runner.temp }}/site
+          package: ${{ runner.temp }}/site/wwwroot
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
