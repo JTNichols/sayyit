@@ -9,7 +9,7 @@ on:
     branches:
       - env/dev
     paths:
-      - 'sayyit.web/**'
+      - 'Sayyit.Web/**'
       - '.github/workflows/sayyit-web-action.yml'
   workflow_dispatch:
 
@@ -50,17 +50,36 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Restore
+        run: dotnet restore Sayyit.Web\Sayyit.Web.csproj
+
       - name: Build with dotnet
-        run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release
+        run: dotnet build Sayyit.Web\Sayyit.Web.csproj --configuration Release 
 
       - name: dotnet publish
-        run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
+        shell: pwsh
+        run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "$env:RUNNER_TEMP\myapp" --no-build
+        #run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
+
+      - name: Verify processed index.html
+        shell: pwsh
+        run: |
+          $index = Join-Path $env:RUNNER_TEMP "myapp\wwwroot\index.html"
+          if (-not (Test-Path $index)) { throw "Published index.html not found: $index" }
+          $content = Get-Content $index -Raw
+          if ($content -match '#\[\.\{fingerprint\}\]') {
+            throw "Fingerprint placeholder not replaced in index.html"
+          }
+          if ($content -notmatch '_framework/blazor\.webassembly\..+\.js') {
+            throw "Processed blazor.webassembly fingerprinted script not found in published index.html"
+          }
+
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp/wwwroot
+          path: ${{ runner.temp }}/myapp/wwwroot
 
   deploy:
     runs-on: windows-latest
@@ -74,6 +93,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
+          path: ${{ runner.temp }}/site
 
       - name: Azure login
         uses: azure/login@v2
@@ -104,5 +124,5 @@ jobs:
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           slot-name: 'Production'
-          package: .
+          package: ${{ runner.temp }}/site
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
