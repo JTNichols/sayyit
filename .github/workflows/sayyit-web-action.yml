@@ -90,12 +90,21 @@ jobs:
             throw "No blazor.webassembly boot script found in published _framework folder"
           }
 
+      - name: Verify IIS web.config for wasm hosting
+        shell: pwsh
+        run: |
+          $webConfig = Join-Path $env:RUNNER_TEMP "myapp\web.config"
+          if (-not (Test-Path $webConfig)) { throw "Published web.config not found: $webConfig" }
+          $content = Get-Content $webConfig -Raw
+          if ($content -notmatch 'mimeMap fileExtension="\.wasm"') {
+            throw "Published web.config is missing .wasm MIME mapping"
+          }
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{ runner.temp }}/myapp/wwwroot
+          path: ${{ runner.temp }}/myapp
 
   deploy:
     runs-on: windows-latest
