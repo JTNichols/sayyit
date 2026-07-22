@@ -144,15 +144,23 @@ jobs:
             $publishProfile | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Deploy to Azure Web App
-        shell: pwsh
-        run: |
-          az webapp deploy `
-            --resource-group "${{ env.RESOURCE_GROUP }}" `
-            --name "${{ env.WEBAPP_NAME }}" `
-            --src-path "${{ runner.temp }}/site/wwwroot" `
-            --type static `
-            --clean true `
-            --restart true
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: 'Production'
+          package: ${{ runner.temp }}/site
+          publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
+      # - name: Deploy to Azure Web App
+      #   shell: pwsh
+      #   run: |
+      #     az webapp deploy `
+      #       --resource-group "${{ env.RESOURCE_GROUP }}" `
+      #       --name "${{ env.WEBAPP_NAME }}" `
+      #       --src-path "${{ runner.temp }}/site/wwwroot" `
+      #       --type static `
+      #       --clean true `
+      #       --restart true
       #- name: Deploy to Azure Web App
         #id: deploy-to-webapp
         #uses: azure/webapps-deploy@v3
