@@ -125,28 +125,28 @@ jobs:
       #       --clean true `
       #       --restart true
 
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-          publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
+      # - name: Deploy to Azure WebApp
+      #   uses: azure/webapps-deploy@v2
+      #   with:
+      #     app-name: ${{ env.AZURE_WEBAPP_NAME }}
+      #     package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      #     publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
       
 
-      # - name: Zip payload
-      #   shell: pwsh
-      #   run: Compress-Archive -Path "${{ runner.temp }}/site/*" -DestinationPath "${{ runner.temp }}/app.zip" -Force
+      - name: Zip payload
+        shell: pwsh
+        run: Compress-Archive -Path "${{ runner.temp }}/site/*" -DestinationPath "${{ runner.temp }}/app.zip" -Force
 
-      # - name: Deploy (clean)
-      #   shell: pwsh
-      #   run: |
-      #     az webapp deploy `
-      #       --resource-group "${{ env.RESOURCE_GROUP }}" `
-      #       --name "${{ env.WEBAPP_NAME }}" `
-      #       --src-path "${{ runner.temp }}/app.zip" `
-      #       --type zip `
-      #       --clean true `
-      #       --restart true
+      - name: Deploy (clean)
+        shell: pwsh
+        run: |
+          az webapp deploy `
+            --resource-group "${{ env.RESOURCE_GROUP }}" `
+            --name "${{ env.WEBAPP_NAME }}" `
+            --src-path "${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}" `
+            --type zip `
+            --clean true `
+            --restart true
 
       # - name: Smoke test
       #   shell: pwsh
