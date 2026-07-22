@@ -5,7 +5,7 @@ on:
     branches: [env/dev]
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-web-action.yml'
+      - '.github/workflows/sayyit-web-action3.yml'
   workflow_dispatch:
 
 permissions:
@@ -70,6 +70,7 @@ jobs:
           name: .net-app
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
           #path: ${{ runner.temp }}/site
+
 
       - name: Azure login
         uses: azure/login@v2
