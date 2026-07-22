@@ -1,123 +1,289 @@
-name: Deploy Sayyit.Web (Blazor WASM) to Azure Web App
+name: Deploy Sayyit.Web Blazor WASM to Azure Web App
 
 on:
   push:
-    branches: [env/dev]
+    branches:
+      - env/dev
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-web-action.yml'
+      - '.github/workflows/sayyit-web-deploy.yml'
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-   
+
 env:
   RESOURCE_GROUP: sayyit_rg1
   ENV_NAME: dev
   BASE_NAME: sayyit
-  WEBAPP_NAME: sayyit-dev-web
-  KEYVAULT_NAME: sayyit-dev-kv
-  KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
+  AZURE_WEBAPP_NAME: sayyit-dev-web
+  KEY_VAULT_NAME: sayyit-dev-kv
+  KEY_VAULT_SECRET_NAME: sayyit-dev-web-publish-profile
+
   WORKING_DIRECTORY: Sayyit.Web/Sayyit.Web.csproj
   CONFIGURATION: Release
-  AZURE_WEBAPP_PACKAGE_PATH: myapp
-  AZURE_WEBAPP_NAME: sayyit-dev-web
 
+  PUBLISH_DIRECTORY: myapp
+  DEPLOYMENT_ZIP_NAME: sayyit-web.zip
 
 jobs:
   build:
+    name: Publish and package Blazor WASM
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-           
-      #- name: Publish
-        #run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+
       - name: Publish
         shell: pwsh
         run: |
-          dotnet publish "${{ env.WORKING_DIRECTORY }}" `
-            --configuration ${{ env.CONFIGURATION }} `
-            --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
 
-      - name: Verify publish output
+          if (Test-Path $publish) {
+            Remove-Item $publish -Recurse -Force
+          }
+
+          dotnet publish '${{ env.WORKING_DIRECTORY }}' `
+            --configuration '${{ env.CONFIGURATION }}' `
+            --output $publish
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet publish failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Verify published Blazor output
         shell: pwsh
         run: |
-          $publish = "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
-          $www = Join-Path $publish "wwwroot"
-          $index = Join-Path $www "index.html"
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
+          $wwwRoot = Join-Path $publish 'wwwroot'
+          $framework = Join-Path $wwwRoot '_framework'
+          $index = Join-Path $wwwRoot 'index.html'
+          $webConfig = Join-Path $publish 'web.config'
 
-          if (-not (Test-Path (Join-Path $publish "web.config"))) { throw "Missing web.config" }
-          if (-not (Test-Path $index)) { throw "Missing wwwroot\index.html" }
-          if (Test-Path (Join-Path $www "web.config")) { throw "Stray web.config inside wwwroot" }
+          if (-not (Test-Path $webConfig)) {
+            throw "Missing web.config at publish root: $webConfig"
+          }
+
+          if (-not (Test-Path $index)) {
+            throw "Missing wwwroot\index.html: $index"
+          }
+
+          if (-not (Test-Path $framework)) {
+            throw "Missing wwwroot\_framework: $framework"
+          }
+
+          if (Test-Path (Join-Path $wwwRoot 'web.config')) {
+            throw "Unexpected web.config inside wwwroot."
+          }
 
           $html = Get-Content $index -Raw
-          Write-Host "----- published index.html (script-related lines) -----"
-          $html -split "`n" | Where-Object { $_ -match 'blazor|importmap|preload|fingerprint' } | ForEach-Object { Write-Host $_.Trim() }
 
-          if ($html -match '\#\[\.\{\s*fingerprint\s*\}\]') {
-            throw "Fingerprint placeholder was NOT replaced in published index.html"
+          Write-Host '----- Published index.html relevant lines -----'
+          $html -split "`n" |
+            Where-Object { $_ -match 'blazor|importmap|preload|fingerprint' } |
+            ForEach-Object { Write-Host $_.Trim() }
+
+          if ($html -match '#\[\.\{fingerprint\}\]') {
+            throw "Fingerprint placeholder remains in published index.html."
           }
+
           if ($html -match 'blazor\.webassembly\.fingerprint\.js') {
-            throw "Old invalid script src still present"
-          }
-          if ($html -notmatch '_framework/blazor\.webassembly\.[^"\#]+\.js') {
-            throw "Published index.html missing fingerprinted blazor.webassembly.*.js src"
+            throw "Invalid blazor.webassembly.fingerprint.js reference remains."
           }
 
-          $js = Get-ChildItem (Join-Path $www "_framework") -Filter "blazor.webassembly*.js" -File -ErrorAction SilentlyContinue
-          if (-not $js -or $js.Count -lt 1) {
-            throw "No blazor.webassembly*.js under wwwroot\_framework"
-          }
-          Write-Host "Framework JS: $($js.Name -join ', ')"
-
-          if ((Get-ChildItem (Join-Path $www "_framework") -Filter *.wasm -File).Count -lt 1) {
-            throw "No WebAssembly files in wwwroot\_framework"
+          if ($html -notmatch '_framework/blazor\.webassembly\.[^"]+\.js') {
+            throw "Published index.html has no resolved fingerprinted Blazor boot script."
           }
 
-      - name: Publish Artifacts
+          $requiredPatterns = @(
+            'blazor.webassembly.*.js',
+            'dotnet.*.js',
+            'dotnet.runtime.*.js',
+            'dotnet.native.*.js',
+            'dotnet.native.*.wasm',
+            'System.Private.CoreLib.*.wasm',
+            'System.Runtime.InteropServices.JavaScript.*.wasm',
+            'icudt*.dat'
+          )
+
+          foreach ($pattern in $requiredPatterns) {
+            $matches = @(
+              Get-ChildItem -Path $framework -Filter $pattern -File -ErrorAction SilentlyContinue
+            )
+
+            if ($matches.Count -eq 0) {
+              throw "Missing required published Blazor runtime asset matching: $pattern"
+            }
+
+            Write-Host "Found $pattern : $($matches.Name -join ', ')"
+          }
+
+          $wasmFiles = @(
+            Get-ChildItem -Path $framework -Filter '*.wasm' -File -ErrorAction SilentlyContinue
+          )
+
+          Write-Host "Published WASM count: $($wasmFiles.Count)"
+
+          if ($wasmFiles.Count -lt 3) {
+            throw 'Published output contains too few .wasm files.'
+          }
+
+      - name: Create deployment ZIP
+        shell: pwsh
+        run: |
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
+          $zip = Join-Path $env:RUNNER_TEMP '${{ env.DEPLOYMENT_ZIP_NAME }}'
+
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+
+          Compress-Archive `
+            -Path (Join-Path $publish '*') `
+            -DestinationPath $zip `
+            -CompressionLevel Optimal
+
+          if (-not (Test-Path $zip)) {
+            throw "Deployment ZIP was not created: $zip"
+          }
+
+          Write-Host "Deployment ZIP: $zip"
+          Write-Host "Deployment ZIP bytes: $((Get-Item $zip).Length)"
+
+      - name: Verify deployment ZIP
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $zip = Join-Path $env:RUNNER_TEMP '${{ env.DEPLOYMENT_ZIP_NAME }}'
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+
+          try {
+            $entries = @($archive.Entries)
+
+            $requiredExact = @(
+              'web.config',
+              'wwwroot/index.html'
+            )
+
+            foreach ($required in $requiredExact) {
+              if (-not ($entries | Where-Object { $_.FullName -eq $required })) {
+                throw "Deployment ZIP is missing required file: $required"
+              }
+            }
+
+            $requiredPatterns = @(
+              'wwwroot/_framework/blazor.webassembly.*.js',
+              'wwwroot/_framework/dotnet.*.js',
+              'wwwroot/_framework/dotnet.runtime.*.js',
+              'wwwroot/_framework/dotnet.native.*.js',
+              'wwwroot/_framework/dotnet.native.*.wasm',
+              'wwwroot/_framework/System.Private.CoreLib.*.wasm',
+              'wwwroot/_framework/System.Runtime.InteropServices.JavaScript.*.wasm',
+              'wwwroot/_framework/icudt*.dat'
+            )
+
+            foreach ($pattern in $requiredPatterns) {
+              $matches = @(
+                $entries | Where-Object { $_.FullName -like $pattern }
+              )
+
+              if ($matches.Count -eq 0) {
+                throw "Deployment ZIP is missing required asset matching: $pattern"
+              }
+
+              Write-Host "ZIP contains $pattern : $($matches.FullName -join ', ')"
+            }
+
+            $wasmEntries = @(
+              $entries | Where-Object { $_.FullName -like 'wwwroot/_framework/*.wasm' }
+            )
+
+            Write-Host "WASM entries in ZIP: $($wasmEntries.Count)"
+
+            if ($wasmEntries.Count -lt 3) {
+              throw 'Deployment ZIP contains too few Blazor .wasm files.'
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
+      - name: Upload deployment ZIP
         uses: actions/upload-artifact@v4
         with:
           name: webapp
-          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }} 
-
-      - name: Verify publish output
-        shell: pwsh
-        run: |
-          $publish = "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
-
-          if (-not (Test-Path "$publish\web.config")) {
-            throw "Missing web.config"
-          }
-
-          if (-not (Test-Path "$publish\wwwroot\index.html")) {
-            throw "Missing wwwroot\index.html"
-          }
-
-          if ((Get-ChildItem "$publish\wwwroot\_framework" -Filter *.wasm -File).Count -lt 1) {
-            throw "No WebAssembly files in wwwroot\_framework"
-          }
-
-          if (Test-Path "$publish\wwwroot\web.config") {
-            throw "Stray web.config inside wwwroot"
-          }
+          path: ${{ runner.temp }}/${{ env.DEPLOYMENT_ZIP_NAME }}
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
-    runs-on: windows-latest
+    name: Deploy to Azure
     needs: build
+    runs-on: windows-latest
+
     steps:
-      - name: Download artifact
+      - name: Download deployment ZIP
         uses: actions/download-artifact@v4
         with:
-          name: webapp # was .net-app
-          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-          #path: ${{ runner.temp }}/site
+          name: webapp
+          path: ${{ runner.temp }}/site
 
+      - name: Verify downloaded deployment ZIP
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $zip = Join-Path $env:RUNNER_TEMP 'site/${{ env.DEPLOYMENT_ZIP_NAME }}'
+
+          if (-not (Test-Path $zip)) {
+            throw "Downloaded deployment ZIP does not exist: $zip"
+          }
+
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+
+          try {
+            $entries = @($archive.Entries)
+
+            $requiredPatterns = @(
+              'wwwroot/_framework/dotnet.native.*.wasm',
+              'wwwroot/_framework/System.Private.CoreLib.*.wasm',
+              'wwwroot/_framework/System.Runtime.InteropServices.JavaScript.*.wasm',
+              'wwwroot/_framework/icudt*.dat'
+            )
+
+            foreach ($pattern in $requiredPatterns) {
+              $matches = @(
+                $entries | Where-Object { $_.FullName -like $pattern }
+              )
+
+              if ($matches.Count -eq 0) {
+                throw "Downloaded ZIP is missing required asset matching: $pattern"
+              }
+
+              Write-Host "Downloaded ZIP contains: $($matches.FullName -join ', ')"
+            }
+
+            $wasmEntries = @(
+              $entries | Where-Object { $_.FullName -like 'wwwroot/_framework/*.wasm' }
+            )
+
+            Write-Host "Downloaded ZIP WASM count: $($wasmEntries.Count)"
+
+            if ($wasmEntries.Count -lt 3) {
+              throw 'Downloaded ZIP contains too few WebAssembly files.'
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
 
       - name: Azure login
         uses: azure/login@v2
@@ -126,44 +292,4 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get publish profile from Key Vault
-        id: get-publish-profile
-        uses: azure/powershell@v2
-        with:
-          azPSVersion: latest
-          inlineScript: |
-            $publishProfile = az keyvault secret show `
-              --vault-name "${{ env.KEYVAULT_NAME }}" `
-              --name "${{ env.KEYVAULT_SECRET_NAME }}" `
-              --query value -o tsv
-            if ([string]::IsNullOrWhiteSpace($publishProfile)) {
-              throw "Key Vault secret '${{ env.KEYVAULT_SECRET_NAME }}' was not found or is empty."
-            }
-            "publish_profile<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            $publishProfile | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-      - name: Debug publish profile metadata (safe)
-        shell: pwsh
-        run: |
-          $profile = @"
-          ${{ steps.get-publish-profile.outputs.publish_profile }}
-          "@
-          if ([string]::IsNullOrWhiteSpace($profile)) {
-            throw "Publish profile output is empty."
-          }
-          $bytes = [System.Text.Encoding]::UTF8.GetBytes($profile)
-          $sha256 = [System.Security.Cryptography.SHA256]::Create()
-          $hash = [System.BitConverter]::ToString($sha256.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
-          Write-Host "publish-profile length: $($profile.Length)"
-          Write-Host "publish-profile sha256: $hash"
-            
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-          publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
-      
-       
-             
+      - 
