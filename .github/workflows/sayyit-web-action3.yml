@@ -22,7 +22,7 @@ env:
   KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
   WORKING_DIRECTORY: Sayyit.Web/Sayyit.Web.csproj
   CONFIGURATION: Release
-  AZURE_WEBAPP_PACKAGE_PATH: ${{ runner.temp }}/myapp
+  AZURE_WEBAPP_PACKAGE_PATH: myapp
   AZURE_WEBAPP_NAME: sayyit-dev-web
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
       - name: Build
         run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
       - name: Publish
-        run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+        run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
       # - name: Publish
       #   shell: pwsh
       #   run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "$env:RUNNER_TEMP\myapp"
@@ -57,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: webapp
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
       # - name: Upload artifact
       #   uses: actions/upload-artifact@v4
       #   with:
@@ -72,7 +72,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: webapp # was .net-app
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
           #path: ${{ runner.temp }}/site
 
 
@@ -119,7 +119,7 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
           publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
 
 
