@@ -63,6 +63,27 @@ jobs:
       #     name: .net-app
       #     path: ${{ runner.temp }}/myapp
 
+      - name: Verify publish output
+        shell: pwsh
+        run: |
+          $publish = "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+
+          if (-not (Test-Path "$publish\web.config")) {
+            throw "Missing web.config"
+          }
+
+          if (-not (Test-Path "$publish\wwwroot\index.html")) {
+            throw "Missing wwwroot\index.html"
+          }
+
+          if ((Get-ChildItem "$publish\wwwroot\_framework" -Filter *.wasm -File).Count -lt 1) {
+            throw "No WebAssembly files in wwwroot\_framework"
+          }
+
+          if (Test-Path "$publish\wwwroot\web.config") {
+            throw "Stray web.config inside wwwroot"
+          }
+
   deploy:
     runs-on: windows-latest
     needs: build
