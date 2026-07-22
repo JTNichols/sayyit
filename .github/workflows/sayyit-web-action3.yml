@@ -20,6 +20,10 @@ env:
   WEBAPP_NAME: sayyit-dev-web
   KEYVAULT_NAME: sayyit-dev-kv
   KEYVAULT_SECRET_NAME: sayyit-dev-web-publish-profile
+  WORKING_DIRECTORY: Sayyit.Web/Sayyit.Web.csproj
+  CONFIGURATION: Release
+  AZURE_WEBAPP_PACKAGE_PATH: ${{ runner.temp }}/myapp
+  AZURE_WEBAPP_NAME: sayyit-dev-web
 
 jobs:
   build:
@@ -67,7 +71,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: webapp # was .net-app
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
           #path: ${{ runner.temp }}/site
 
