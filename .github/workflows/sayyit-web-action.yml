@@ -5,14 +5,13 @@ on:
     branches: [env/dev]
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-web-action3.yml'
+      - '.github/workflows/sayyit-web-action.yml'
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-
-
+   
 env:
   RESOURCE_GROUP: sayyit_rg1
   ENV_NAME: dev
@@ -115,13 +114,24 @@ jobs:
           Write-Host "publish-profile length: $($profile.Length)"
           Write-Host "publish-profile sha256: $hash"
 
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-          publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
+      - name: Deploy to Azure WebApp (clean existing files first)
+        shell: pwsh
+        run: |
+          az webapp deploy `
+            --resource-group "${{ env.RESOURCE_GROUP }}" `
+            --name "${{ env.WEBAPP_NAME }}" `
+            --src-path "${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}" `
+            --type startup `
+            --clean true `
+            --restart true
 
+      # - name: Deploy to Azure WebApp
+      #   uses: azure/webapps-deploy@v2
+      #   with:
+      #     app-name: ${{ env.AZURE_WEBAPP_NAME }}
+      #     package: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      #     publish-profile: ${{ steps.get-publish-profile.outputs.publish_profile }}
+      
 
       # - name: Zip payload
       #   shell: pwsh
