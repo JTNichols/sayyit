@@ -100,6 +100,10 @@ jobs:
             throw "Published web.config is missing .wasm MIME mapping"
           }
 
+      - name: Copy web.config into deploy payload
+        shell: pwsh
+        run: Copy-Item "$env:RUNNER_TEMP\myapp\web.config" "$env:RUNNER_TEMP\myapp\wwwroot\web.config" -Force
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
