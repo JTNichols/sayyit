@@ -6,7 +6,7 @@ on:
       - env/dev
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-web-deploy.yml'
+      - '.github/workflows/sayyit-web-action.yml'
   workflow_dispatch:
 
 permissions:
@@ -284,6 +284,7 @@ jobs:
           finally {
             $archive.Dispose()
           }
+
 
       - name: Azure login
         uses: azure/login@v2
