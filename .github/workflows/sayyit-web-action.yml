@@ -34,34 +34,56 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-          
-      - name: Restore
-        run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
-      - name: Build
-        run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+           
+      #- name: Publish
+        #run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
       - name: Publish
-        run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
-      # - name: Publish
-      #   shell: pwsh
-      #   run: dotnet publish Sayyit.Web\Sayyit.Web.csproj -c Release -o "$env:RUNNER_TEMP\myapp"
+        shell: pwsh
+        run: |
+          dotnet publish "${{ env.WORKING_DIRECTORY }}" `
+            --configuration ${{ env.CONFIGURATION }} `
+            --output "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
-      # - name: Verify publish output
-      #   shell: pwsh
-      #   run: |
-      #     if (-not (Test-Path "$env:RUNNER_TEMP\myapp\web.config")) { throw "Missing web.config" }
-      #     if (-not (Test-Path "$env:RUNNER_TEMP\myapp\wwwroot\index.html")) { throw "Missing index.html" }
-      #     if ((Get-ChildItem "$env:RUNNER_TEMP\myapp\wwwroot\_framework" -Filter *.wasm -File).Count -lt 1) { throw "No wasm files" }
-      #     if (Test-Path "$env:RUNNER_TEMP\myapp\wwwroot\web.config") { throw "Stray web.config inside wwwroot" }
+      - name: Verify publish output
+        shell: pwsh
+        run: |
+          $publish = "$env:RUNNER_TEMP\${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+          $www = Join-Path $publish "wwwroot"
+          $index = Join-Path $www "index.html"
+
+          if (-not (Test-Path (Join-Path $publish "web.config"))) { throw "Missing web.config" }
+          if (-not (Test-Path $index)) { throw "Missing wwwroot\index.html" }
+          if (Test-Path (Join-Path $www "web.config")) { throw "Stray web.config inside wwwroot" }
+
+          $html = Get-Content $index -Raw
+          Write-Host "----- published index.html (script-related lines) -----"
+          $html -split "`n" | Where-Object { $_ -match 'blazor|importmap|preload|fingerprint' } | ForEach-Object { Write-Host $_.Trim() }
+
+          if ($html -match '\#\[\.\{\s*fingerprint\s*\}\]') {
+            throw "Fingerprint placeholder was NOT replaced in published index.html"
+          }
+          if ($html -match 'blazor\.webassembly\.fingerprint\.js') {
+            throw "Old invalid script src still present"
+          }
+          if ($html -notmatch '_framework/blazor\.webassembly\.[^"\#]+\.js') {
+            throw "Published index.html missing fingerprinted blazor.webassembly.*.js src"
+          }
+
+          $js = Get-ChildItem (Join-Path $www "_framework") -Filter "blazor.webassembly*.js" -File -ErrorAction SilentlyContinue
+          if (-not $js -or $js.Count -lt 1) {
+            throw "No blazor.webassembly*.js under wwwroot\_framework"
+          }
+          Write-Host "Framework JS: $($js.Name -join ', ')"
+
+          if ((Get-ChildItem (Join-Path $www "_framework") -Filter *.wasm -File).Count -lt 1) {
+            throw "No WebAssembly files in wwwroot\_framework"
+          }
+
       - name: Publish Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: webapp
-          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-      # - name: Upload artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: .net-app
-      #     path: ${{ runner.temp }}/myapp
+          path: ${{ runner.temp }}/${{ env.AZURE_WEBAPP_PACKAGE_PATH }} 
 
       - name: Verify publish output
         shell: pwsh
