@@ -100,15 +100,15 @@ jobs:
             throw "Published web.config is missing .wasm MIME mapping"
           }
 
-      - name: Copy web.config into deploy payload
-        shell: pwsh
-        run: Copy-Item "$env:RUNNER_TEMP\myapp\web.config" "$env:RUNNER_TEMP\myapp\wwwroot\web.config" -Force
+      # - name: Copy web.config into deploy payload
+      #   shell: pwsh
+      #   run: Copy-Item "$env:RUNNER_TEMP\myapp\web.config" "$env:RUNNER_TEMP\myapp\wwwroot\web.config" -Force
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{ runner.temp }}/myapp/wwwroot
+          path: ${{ runner.temp }}/myapp
 
   deploy:
     runs-on: windows-latest
@@ -128,9 +128,11 @@ jobs:
       - name: Verify deploy payload
         shell: pwsh
         run: |
-          if (-not (Test-Path "${{ runner.temp }}/site/_framework")) { throw "Missing _framework in deploy payload" }
-          $count = (Get-ChildItem "${{ runner.temp }}/site/_framework" -Filter *.wasm -File).Count
+          if (-not (Test-Path "${{ runner.temp }}/site/web.config")) { throw "Missing web.config in deploy payload" }
+          if (-not (Test-Path "${{ runner.temp }}/site/wwwroot/_framework")) { throw "Missing _framework in deploy payload" }
+          $count = (Get-ChildItem "${{ runner.temp }}/site/wwwroot/_framework" -Filter *.wasm -File).Count
           if ($count -lt 1) { throw "No wasm files in deploy payload" }
+          if (Test-Path "${{ runner.temp }}/site/wwwroot/web.config") { throw "Stray web.config inside wwwroot will break routing" }
            
       - name: Azure login
         uses: azure/login@v2
