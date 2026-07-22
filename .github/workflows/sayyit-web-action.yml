@@ -24,6 +24,7 @@ env:
   AZURE_WEBAPP_PACKAGE_PATH: myapp
   AZURE_WEBAPP_NAME: sayyit-dev-web
 
+
 jobs:
   build:
     runs-on: windows-latest
