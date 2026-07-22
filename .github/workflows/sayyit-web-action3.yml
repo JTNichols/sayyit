@@ -99,8 +99,8 @@ jobs:
         shell: pwsh
         run: |
           $profile = @"
-${{ steps.get-publish-profile.outputs.publish_profile }}
-"@
+          ${{ steps.get-publish-profile.outputs.publish_profile }}
+          "@
           if ([string]::IsNullOrWhiteSpace($profile)) {
             throw "Publish profile output is empty."
           }
