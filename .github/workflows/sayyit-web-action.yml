@@ -293,3 +293,20 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy ZIP to Azure Web App
+        shell: pwsh
+        run: |
+            $zip = Join-Path $env:RUNNER_TEMP "site/${{ env.DEPLOYMENT_ZIP_NAME }}"
+
+            if (-not (Test-Path $zip)) {
+              throw "Deployment ZIP not found: $zip"
+            }
+
+            az webapp deploy `
+              --resource-group "${{ env.RESOURCE_GROUP }}" `
+              --name "${{ env.AZURE_WEBAPP_NAME }}" `
+              --src-path $zip `
+              --type zip `
+              --clean true `
+              --restart true
