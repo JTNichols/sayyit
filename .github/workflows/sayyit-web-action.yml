@@ -8,6 +8,7 @@ on:
       - 'Sayyit.Web/**'
       - '.github/workflows/sayyit-web-action.yml'
   workflow_dispatch:
+  
 
 permissions:
   id-token: write
