@@ -285,8 +285,7 @@ jobs:
           finally {
             $archive.Dispose()
           }
-
-
+           
       - name: Azure login
         uses: azure/login@v2
         with:
