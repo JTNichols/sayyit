@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - env/dev
+      - main 
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-dev-web-action.yml'
+      - '.github/workflows/sayyit-web-action.yml'
   workflow_dispatch:
   
 
@@ -18,7 +19,7 @@ env:
   RESOURCE_GROUP: sayyit_rg1
   ENV_NAME: dev
   BASE_NAME: sayyit
-  AZURE_WEBAPP_NAME: sayyit-dev-web
+  AZURE_WEBAPP_NAME: sayyit-dev-web 
   KEY_VAULT_NAME: sayyit-dev-kv
   KEY_VAULT_SECRET_NAME: sayyit-dev-web-publish-profile
 
