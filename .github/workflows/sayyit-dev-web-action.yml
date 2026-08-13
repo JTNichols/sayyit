@@ -6,7 +6,7 @@ on:
       - env/dev
     paths:
       - 'Sayyit.Web/**'
-      - '.github/workflows/sayyit-web-action.yml'
+      - '.github/workflows/sayyit-dev-web-action.yml'
   workflow_dispatch:
   
 
