@@ -1,0 +1,7 @@
+﻿{
+    "spa":  {
+                "redirectUris":  [
+                                     "https://localhost/authentication/login-callback"
+                                 ]
+            }
+}

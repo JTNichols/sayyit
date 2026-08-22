@@ -1,0 +1,8 @@
+﻿{
+    "signInAudience":  "AzureADMyOrg",
+    "spa":  {
+                "redirectUris":  [
+                                     null
+                                 ]
+            }
+}
