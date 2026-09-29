@@ -1,0 +1,156 @@
+name: Build and deploy Sayyit.Db (DACPAC) to Azure SQL
+
+on:
+  push:
+    branches: [ 'env/dev', 'main' ]
+    paths:
+      - 'Sayyit.Db/**'
+      - '.github/workflows/sayyit-db-action.yml'
+  pull_request:
+    branches: [ 'env/dev', 'main' ]
+    paths:
+      - 'Sayyit.Db/**'
+      - '.github/workflows/sayyit-db-action.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  WORKING_DIRECTORY: Sayyit.Db/Say yit.Db.sqlproj
+  CONFIGURATION: Release
+  DACPAC_NAME: sayyit-db.dacpac
+  # choose server/db by branch name (main -> prod, otherwise dev)
+  AZURE_SQL_SERVER_FQDN: ${{ github.ref_name == 'main' && 'sayyit-prod-sqlserver.database.windows.net' || 'sayyit-dev-sqlserver.database.windows.net' }}
+  AZURE_SQL_DB: ${{ github.ref_name == 'main' && 'sayyit-prod-db' || 'sayyit-dev-db' }}
+
+jobs:
+  build:
+    name: Build DACPAC
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Sayyit.Db (.sqlproj) and locate DACPAC
+        shell: pwsh
+        run: |
+          $project = '${{ env.WORKING_DIRECTORY }}'
+          Write-Host "Building project: $project"
+
+          dotnet build $project --configuration '${{ env.CONFIGURATION }}'
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet build failed with exit code $LASTEXITCODE"
+          }
+
+          # Find generated .dacpac
+          $dacpac = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter '*.dacpac' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if (-not $dacpac) {
+            throw "Could not find a generated .dacpac in the repository workspace after build."
+          }
+
+          Write-Host "Found DACPAC: $($dacpac.FullName)"
+
+          $dest = Join-Path $env:RUNNER_TEMP '${{ env.DACPAC_NAME }}'
+          Copy-Item -Path $dacpac.FullName -Destination $dest -Force
+          Write-Host "Copied DACPAC to: $dest"
+
+      - name: Upload DACPAC artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: ${{ runner.temp }}/${{ env.DACPAC_NAME }}
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy DACPAC to Azure SQL
+    needs: build
+    runs-on: windows-latest
+    # deploy only on push or merged PRs
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+
+    steps:
+      - name: Download DACPAC artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sayyit-db-dacpac
+          path: ${{ runner.temp }}/site
+
+      - name: Verify downloaded DACPAC
+        shell: pwsh
+        run: |
+          $dacpac = Join-Path $env:RUNNER_TEMP "site/${{ env.DACPAC_NAME }}"
+          if (-not (Test-Path $dacpac)) {
+            throw "Downloaded DACPAC does not exist: $dacpac"
+          }
+          Write-Host "Using DACPAC: $dacpac"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish DACPAC to target database
+        shell: pwsh
+        env:
+          DACPAC_PATH: ${{ runner.temp }}/site/${{ env.DACPAC_NAME }}
+          AZURE_SQL_SERVER_FQDN: ${{ env.AZURE_SQL_SERVER_FQDN }}
+          AZURE_SQL_DB: ${{ env.AZURE_SQL_DB }}
+          SQL_ADMIN_USERNAME: ${{ secrets.SQL_ADMIN_USERNAME }}
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+        run: |
+          $dacpac = $env:DACPAC_PATH
+          $server = $env:AZURE_SQL_SERVER_FQDN
+          $db = $env:AZURE_SQL_DB
+          $user = $env:SQL_ADMIN_USERNAME
+          $pwd = $env:SQL_ADMIN_PASSWORD
+
+          Write-Host "Publishing $dacpac -> $server/$db as $user"
+
+          # locate SqlPackage.exe
+          $sqlPackage = Get-Command SqlPackage.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $sqlPackage) {
+            # common install locations
+            $candidates = @(
+              'C:\Program Files\Microsoft SQL Server\160\DAC\bin\SqlPackage.exe',
+              'C:\Program Files\Microsoft SQL Server\150\DAC\bin\SqlPackage.exe',
+              'C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\SqlPackage.exe'
+            )
+            foreach ($p in $candidates) {
+              if (Test-Path $p) { $sqlPackage = $p; break }
+            }
+          } else { $sqlPackage = $sqlPackage.Path }
+
+          if (-not $sqlPackage -or -not (Test-Path $sqlPackage)) {
+            throw "SqlPackage.exe not found on runner. Install SqlPackage on the runner or adjust this workflow to download it."
+          }
+
+          $publishReport = Join-Path $env:RUNNER_TEMP 'publish-report.xml'
+
+          & $sqlPackage "/Action:Publish" "/SourceFile:$dacpac" "/TargetServerName:$server" "/TargetDatabaseName:$db" "/TargetUser:$user" "/TargetPassword:$pwd" "/p:BlockOnPossibleDataLoss=True" "/DeployReportPath:$publishReport"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "SqlPackage exit code: $LASTEXITCODE"
+            throw "SqlPackage publish failed"
+          }
+
+          Write-Host "Publish report saved to: $publishReport"
+
+      - name: Upload publish report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayyit-db-publish-report
+          path: ${{ runner.temp }}/publish-report.xml
+          if-no-files-found: ignore
