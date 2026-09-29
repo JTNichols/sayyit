@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  WORKING_DIRECTORY: Sayyit.Db/Say yit.Db.sqlproj
+  WORKING_DIRECTORY: Sayyit.Db/Sayyit.Db.sqlproj
   CONFIGURATION: Release
   DACPAC_NAME: sayyit-db.dacpac
   # choose server/db by branch name (main -> prod, otherwise dev)
