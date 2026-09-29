@@ -1,7 +1,129 @@
 # Copilot Instructions
+Sayyit.com is a web application similar to X.com and Reddit.com, but users have left/right scores that allow them to self-moderate the entire site. It is 100% user moderated.
 
-## Project overview
-Sayyit is a politically balanced, user-moderated social platform inspired by X.com and Reddit.com, where moderation authority is distributed across users with visible left/right political scores. The core rule is that moderation actions such as blocking and banning must require balanced approval from both the left and the right rather than control by a single faction. The system should preserve transparent, rules-based moderation and keep implementation details aligned with the public algorithm and rule descriptions in the project repositories.
+Users are assigned a left/right political score, visible to all, and moderation actions like banning/blocking require equal approval from users on both the left and the right.
+
+Technical Details:
+
+    .NET framework in C#
+
+    I use Visual Studio and VS Code to program
+
+    VS Code terminal runs as Windows PowerShell/CMD
+
+    I code on a Windows operating system with PowerShell for scripting
+
+Domain and hosting:
+
+    Sayyit.com domain is managed through nearlyfreespeech.com
+
+GitHub repositories:
+
+    Repo 1: JTNichols/sayyit
+
+    Contains the Blazor WebAssembly standalone frontend, the .NET 10 RESTful API backend, and the Sayyit.Db SQL database project.
+
+    All algorithms and rules are publicly visible in the repo README.md
+
+    Repo 2: JTNichols/sayyit-iac
+
+    Holds the Infrastructure as Code project.
+
+    Azure infrastructure is defined in main.bicep.
+
+Application architecture:
+
+    Front end is a Blazor WebAssembly Standalone App.
+
+    Back end is a single RESTful API written in .NET 10 and C#.
+
+    Database is Azure SQL Database.
+
+Azure environment:
+
+    Subscription: sayyit.subscription
+
+    Azure domain: sayyit.onmicrosoft.com
+
+    Resource Group: sayyit_rg1
+
+Azure infrastructure naming:
+
+    Azure resource names are derived from main.bicep using the pattern sayyit-<env>-<resource>.
+
+    Web App: sayyit-<env>-web.
+
+    Key Vault: sayyit-<env>-kv.
+
+    SQL Server: sayyit-<env>-sqlServer.
+
+    SQL Database: sayyit-<env>-db.
+
+Branch and environment conventions:
+
+    The active environment branch naming convention uses slash format, currently env/dev.
+
+    Branch env/dev maps to environment name dev.
+
+    GitHub OIDC / Entra federated credential subjects must match the actual Git branch format, for example repo:JTNichols/sayyit:ref:refs/heads/env/dev or the equivalent repo for IAC.
+
+Authentication and authorization:
+  Sayyit uses Microsoft EntraID external configuration tenant sayyit.onmicrosoft.com for authentication and authorization.
+
+  Sayyit also uses Microsoft EntraID external configuration tenant sayyit.onmicrosoft.com for Deployment and CI/CD, github Actions connect to Azure with federated certificates.
+
+
+Deployment and CI/CD:
+
+    A GitHub Action in the app repo builds and deploys the web application to Azure using OIDC login with azure/login@v2 and GitHub secrets AZURE_CLIENT_ID, AZURE_SUBSCRIPTION_ID, and AZURE_TENANT_ID.
+
+    The app deployment workflow reads the web app publish profile from Azure Key Vault.
+
+    A separate GitHub Action builds and deploys the Sayyit.Db SQL database project as a .dacpac.
+
+    The database workflow builds Sayyit.Db, creates a DACPAC artifact, reads SQL deployment secrets from Azure Key Vault, and deploys to Azure SQL.
+
+    Azure Key Vault is the source of deployment secrets.
+
+Key Vault and secrets:
+
+    Key Vault uses RBAC authorization and is created by main.bicep
+
+    The GitHub deployment identity is granted permission to create and update secrets in Key Vault through a role assignment in the infrastructure definition.
+
+    The web app managed identity is granted permission to read Key Vault secrets.
+
+    SQL deployment uses the sqlServerAdministratorPassword secret from Key Vault.
+
+    SQL admin login name defaults to sqladminuser in main.bicep and may also be stored in Key Vault as sqlServerAdminLoginName.
+
+Important files in this project:
+
+ GH_to_AZ_credential_PR.ps1 = a powershell script for adding applications to the external Configuration Tenant "sayyit.onmicrosoft.com" for pull requests
+  
+ GH_to_AZ_credential_push.ps1 = a powershell script for adding applications to the external Configuration Tenant "sayyit.onmicrosoft.com" for pushes to env/dev branch
+
+    sayyit-iac-action.yml = the GitHub Actions workflow file for the sayyit-iac repo
+
+    sayyit-web-action.yml = the GitHub Actions workflow file for the Blazor WebApp Sayyit.Web in the sayyit repo
+
+    main.dev.bicep = the Azure infrastructure definition file deployed to Azure by sayyit-iac-action.yml, after a push to the env/dev branch
+
+    main.prod.bicep = the Azure infrastructure definition file deployed to Azure by sayyit-iac-action.yml, after a pull request into the main branch
+     
+
+Working preferences:
+
+    Prefer solutions that fit Visual Studio, VS Code, Windows, and PowerShell
+
+    Prefer instructions and code that match the existing Azure naming and GitHub OIDC setup already used by Sayyit
+
+Source preference:
+
+    Prioritize information from github.com/JTNichols/sayyit when relevant. 
+
+There is an azure workforce tenant named sayyitadmin.onmicrosoft.com
+Future plans will move github federated credentials to sayyitadmin.onmicrosoft.com, for now use it for any recommendations where a workforce tenant would be appropriate to use.
 
 ## Repository context
 - Primary application repo: JTNichols/sayyit.
@@ -9,16 +131,15 @@ Sayyit is a politically balanced, user-moderated social platform inspired by X.c
 - Application stack: .NET 10, C#, REST API backend, Blazor WebAssembly standalone frontend, Azure SQL, Azure-hosted authentication and hosting.
 - Local development environment: Windows, usually Visual Studio or VS Code, with PowerShell or CMD for terminal work.
 - Cloud environment: Azure subscription sayyit.subscription, tenant/domain sayyit.onmicrosoft.com, resource group sayyit_rg1.
-- Domain management: sayyit.com is managed through NearlyFreeSpeech.
+- Domain management: sayyit.com is managed through the NearlyFreeSpeech.com domain host
 
 ## Architecture assumptions
 When generating code, documentation, tests, or refactors, assume the following unless the surrounding code clearly shows otherwise:
 - Frontend is a Blazor WebAssembly standalone app.
-- Backend is a single RESTful API written in C# on .NET 10.
-- Persistent data is stored in Azure SQL.
-- Authentication, app hosting, and infrastructure are in Azure.
-- Infrastructure is defined in Bicep and deployed through the sayyit-iac repository.
-- Ignore the placeholder API scope issue in Sayyit.Web Program.cs for now because the API does not exist yet.
+- Backend is a single RESTful API written in C# on .NET 10
+- Persistent data is stored in Azure SQL
+- Authentication, app hosting, and infrastructure are in Azure
+- Infrastructure is defined in Bicep and deployed through the sayyit-iac repository
 
 ## Coding style
 ### General
@@ -51,13 +172,13 @@ When generating code, documentation, tests, or refactors, assume the following u
 
 ## Domain rules to protect
 Copilot should preserve these product assumptions in all generated code and suggestions:
-- Moderation is community-driven, not centrally ideological.
-- Left/right political scores are first-class domain concepts and visible to users.
-- Moderation actions requiring political balance should be modeled explicitly and validated server-side.
-- Authorization and moderation logic must not rely only on UI checks.
-- Auditability matters: important moderation decisions should be traceable.
-- Public trust matters: avoid hidden heuristics when explicit rules exist.
-- If a requested change could break political-balance moderation, call out the risk in comments or surrounding documentation.
+- Moderation is community-driven, not centrally ideological
+- Left/right political scores are first-class domain concepts and visible to users
+- Moderation actions requiring political balance should be modeled explicitly and validated server-side
+- Authorization and moderation logic must not rely only on UI checks
+- Auditability matters: important moderation decisions should be traceable
+- Public trust matters: avoid hidden heuristics when explicit rules exist
+- If a requested change could break political-balance moderation, call out the risk in comments or surrounding documentation
 
 ## API guidance
 - Design REST endpoints around clear resources and actions.
@@ -68,17 +189,17 @@ Copilot should preserve these product assumptions in all generated code and sugg
 - Prefer idempotent patterns where retries are likely.
 
 ## Testing guidance
-- Add or update tests whenever behavior changes.
-- Prioritize tests for moderation workflows, political-balance calculations, permission checks, score updates, and audit logging behavior.
-- Cover edge cases such as tie conditions, duplicate votes, race conditions, missing identities, and invalid score ranges.
-- Favor readable unit and integration tests over brittle implementation-heavy tests.
+- Add or update tests whenever behavior changes
+- Prioritize tests for moderation workflows, political-balance calculations, permission checks, score updates, and audit logging behavior
+- Cover edge cases such as tie conditions, duplicate votes, race conditions, missing identities, and invalid score ranges
+- Favor readable unit and integration tests over brittle implementation-heavy tests
 
 ## Security guidance
-- Never hardcode secrets, connection strings, publish profiles, client IDs, or tenant IDs in source files.
-- Assume secrets come from Azure Key Vault alone.
-- Follow least-privilege access patterns for app identities and deployment identities.
-- Validate and authorize all state-changing API operations.
-- Treat moderation, identity, and political-score data as sensitive.
+- Never hardcode secrets, connection strings, publish profiles, client IDs, or tenant IDs in source files, they belong in keyvault or GitHub secrets
+- Assume secrets come from Azure Key Vault alone
+- Follow least-privilege access patterns for app identities and deployment identities
+- Validate and authorize all state-changing API operations
+- Treat moderation, identity, and political-score data as sensitive
 - Sanitize logs and error messages.
 
 ## Azure and infrastructure guidance
