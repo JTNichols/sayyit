@@ -9,6 +9,7 @@ on:
       - '.github/workflows/sayyit-db-action.yml'
   pull_request:
     branches: [ 'env/dev', 'main' ]
+    types: [ closed ]
     paths:
       - 'Sayyit.Db/**'
       - '.github/workflows/sayyit-db-action.yml'
