@@ -167,9 +167,18 @@ jobs:
           # retrieve the SQL admin password from Key Vault (secret name: sqlServerAdministratorPassword)
           $vault = $env:KEYVAULT_NAME
           Write-Host "Retrieving sqlServerAdministratorPassword from Key Vault: $vault"
-          $pwd = (& az keyvault secret show --vault-name $vault --name sqlServerAdministratorPassword --query value -o tsv).Trim()
-          if (-not $pwd) {
-            throw "Failed to retrieve sqlServerAdministratorPassword from Key Vault: $vault"
+
+          $secretValueRaw = & az keyvault secret show --vault-name $vault --name sqlServerAdministratorPassword --query value -o tsv 2>&1
+          $secretExitCode = $LASTEXITCODE
+
+          if ($secretExitCode -ne 0) {
+            $secretError = ($secretValueRaw | Out-String).Trim()
+            throw "Failed to retrieve sqlServerAdministratorPassword from Key Vault '$vault' (exit code $secretExitCode). Verify Key Vault RBAC/network rules and secret name. az output: $secretError"
+          }
+
+          $pwd = ($secretValueRaw | Out-String).Trim()
+          if ([string]::IsNullOrWhiteSpace($pwd)) {
+            throw "Key Vault '$vault' returned an empty value for secret 'sqlServerAdministratorPassword'."
           }
 
           Write-Host "Publishing $dacpac -> $server/$db as $user"
