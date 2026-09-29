@@ -1,0 +1,163 @@
+name: Deploy Sayyit.Api REST API to Azure Web App
+
+on:
+  push:
+    branches:
+      - env/dev
+    paths:
+      - 'Sayyit.API/**'
+      - '.github/workflows/sayyit-api-action.yml'
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+    paths:
+      - 'Sayyit.API/**'
+      - '.github/workflows/sayyit-api-action.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: sayyit_rg1
+  AZURE_WEBAPP_NAME: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-api' || 'sayyit-dev-api' }}
+  WORKING_DIRECTORY: Sayyit.API/Sayyit.API.csproj
+  CONFIGURATION: Release
+  PUBLISH_DIRECTORY: myapp
+  DEPLOYMENT_ZIP_NAME: sayyit-api.zip
+
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    name: Publish and package API
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
+
+          if (Test-Path $publish) {
+            Remove-Item $publish -Recurse -Force
+          }
+
+          dotnet publish '${{ env.WORKING_DIRECTORY }}' `
+            --configuration '${{ env.CONFIGURATION }}' `
+            --output $publish
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet publish failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Verify published API output
+        shell: pwsh
+        run: |
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
+          $apiAssembly = Join-Path $publish 'Sayyit.API.dll'
+          $webConfig = Join-Path $publish 'web.config'
+
+          foreach ($requiredFile in @($apiAssembly, $webConfig)) {
+            if (-not (Test-Path $requiredFile)) {
+              throw "Missing required published API file: $requiredFile"
+            }
+          }
+
+      - name: Create deployment ZIP
+        shell: pwsh
+        run: |
+          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
+          $zip = Join-Path $env:RUNNER_TEMP '${{ env.DEPLOYMENT_ZIP_NAME }}'
+
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+
+          Compress-Archive `
+            -Path (Join-Path $publish '*') `
+            -DestinationPath $zip `
+            -CompressionLevel Optimal
+
+          if (-not (Test-Path $zip)) {
+            throw "Deployment ZIP was not created: $zip"
+          }
+
+      - name: Verify deployment ZIP
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $zip = Join-Path $env:RUNNER_TEMP '${{ env.DEPLOYMENT_ZIP_NAME }}'
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+
+          try {
+            $entries = @($archive.Entries)
+
+            foreach ($requiredFile in @('Sayyit.API.dll', 'web.config')) {
+              if (-not ($entries | Where-Object { $_.FullName -eq $requiredFile })) {
+                throw "Deployment ZIP is missing required file: $requiredFile"
+              }
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
+      - name: Upload deployment ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: ${{ runner.temp }}/${{ env.DEPLOYMENT_ZIP_NAME }}
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    name: Deploy to Azure
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Download deployment ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: ${{ runner.temp }}/site
+
+      - name: Verify downloaded deployment ZIP
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'site/${{ env.DEPLOYMENT_ZIP_NAME }}'
+
+          if (-not (Test-Path $zip)) {
+            throw "Downloaded deployment ZIP does not exist: $zip"
+          }
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy ZIP to Azure Web App
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "site/${{ env.DEPLOYMENT_ZIP_NAME }}"
+
+          az webapp deploy `
+            --resource-group "${{ env.RESOURCE_GROUP }}" `
+            --name "${{ env.AZURE_WEBAPP_NAME }}" `
+            --src-path $zip `
+            --type zip `
+            --clean true `
+            --restart true
