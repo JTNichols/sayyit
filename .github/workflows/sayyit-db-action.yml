@@ -22,6 +22,7 @@ env:
   WORKING_DIRECTORY: Sayyit.Db/Sayyit.Db.sqlproj
   CONFIGURATION: Release
   DACPAC_NAME: sayyit-db.dacpac
+  RESOURCE_GROUP: sayyit_rg1
   # choose server/db by branch name (main -> prod, otherwise dev)
   AZURE_SQL_SERVER_FQDN: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-sqlserver.database.windows.net' || 'sayyit-dev-sqlserver.database.windows.net' }}
   AZURE_SQL_DB: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-db' || 'sayyit-dev-db' }}
@@ -100,6 +101,42 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Temporarily allow SQL access from GitHub runner
+        shell: pwsh
+        run: |
+          $serverFqdn = '${{ env.AZURE_SQL_SERVER_FQDN }}'
+          $serverName = $serverFqdn.Split('.')[0]
+          $resourceGroup = '${{ env.RESOURCE_GROUP }}'
+
+          $originalPublicNetworkAccess = (az sql server show --name $serverName --resource-group $resourceGroup --query publicNetworkAccess -o tsv).Trim()
+          if (-not $originalPublicNetworkAccess) {
+            throw "Could not read current SQL publicNetworkAccess for $serverName"
+          }
+
+          "SQL_SERVER_NAME=$serverName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SQL_PUBLIC_NETWORK_ACCESS_ORIGINAL=$originalPublicNetworkAccess" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          if ($originalPublicNetworkAccess -ne 'Enabled') {
+            az sql server update --name $serverName --resource-group $resourceGroup --set publicNetworkAccess=Enabled
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to enable public network access on SQL server $serverName"
+            }
+          }
+
+          $runnerIp = (Invoke-RestMethod -Uri 'https://api.ipify.org').ToString().Trim()
+          if (-not $runnerIp) {
+            throw "Could not determine GitHub runner public IP"
+          }
+
+          $ruleName = "gha-${{ github.run_id }}-${{ github.run_attempt }}"
+          az sql server firewall-rule create --resource-group $resourceGroup --server $serverName --name $ruleName --start-ip-address $runnerIp --end-ip-address $runnerIp
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create SQL firewall rule $ruleName for IP $runnerIp"
+          }
+
+          "SQL_FIREWALL_RULE_NAME=$ruleName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Added temporary SQL firewall rule $ruleName for runner IP $runnerIp"
+
       - name: Install SqlPackage
         shell: pwsh
         run: |
@@ -157,6 +194,29 @@ jobs:
           }
 
           Write-Host "Publish report saved to: $publishReport"
+
+      - name: Remove temporary SQL firewall access and restore SQL network setting
+        if: always()
+        shell: pwsh
+        run: |
+          $serverName = $env:SQL_SERVER_NAME
+          $resourceGroup = '${{ env.RESOURCE_GROUP }}'
+          $ruleName = $env:SQL_FIREWALL_RULE_NAME
+          $originalPublicNetworkAccess = $env:SQL_PUBLIC_NETWORK_ACCESS_ORIGINAL
+
+          if ($serverName -and $ruleName) {
+            az sql server firewall-rule delete --resource-group $resourceGroup --server $serverName --name $ruleName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "Failed to delete temporary SQL firewall rule $ruleName"
+            }
+          }
+
+          if ($serverName -and $originalPublicNetworkAccess) {
+            az sql server update --name $serverName --resource-group $resourceGroup --set publicNetworkAccess=$originalPublicNetworkAccess
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "Failed to restore SQL public network access to $originalPublicNetworkAccess"
+            }
+          }
 
       - name: Upload publish report
         if: always()
