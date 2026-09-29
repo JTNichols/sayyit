@@ -1,0 +1,6 @@
+@Sayyit.API_HostAddress = http://localhost:5084
+
+GET {{Sayyit.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
