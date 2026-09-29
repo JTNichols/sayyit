@@ -108,13 +108,20 @@ jobs:
           AZURE_SQL_SERVER_FQDN: ${{ env.AZURE_SQL_SERVER_FQDN }}
           AZURE_SQL_DB: ${{ env.AZURE_SQL_DB }}
           SQL_ADMIN_USERNAME: ${{ secrets.SQL_ADMIN_USERNAME }}
-          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          KEYVAULT_NAME: ${{ github.ref_name == 'main' && 'sayyit-prod-kv' || 'sayyit-dev-kv' }}
         run: |
           $dacpac = $env:DACPAC_PATH
           $server = $env:AZURE_SQL_SERVER_FQDN
           $db = $env:AZURE_SQL_DB
           $user = $env:SQL_ADMIN_USERNAME
-          $pwd = $env:SQL_ADMIN_PASSWORD
+
+          # retrieve the SQL admin password from Key Vault (secret name: sqlServerAdministratorPassword)
+          $vault = $env:KEYVAULT_NAME
+          Write-Host "Retrieving sqlServerAdministratorPassword from Key Vault: $vault"
+          $pwd = (& az keyvault secret show --vault-name $vault --name sqlServerAdministratorPassword --query value -o tsv).Trim()
+          if (-not $pwd) {
+            throw "Failed to retrieve sqlServerAdministratorPassword from Key Vault: $vault"
+          }
 
           Write-Host "Publishing $dacpac -> $server/$db as $user"
 
