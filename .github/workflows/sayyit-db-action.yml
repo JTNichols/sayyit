@@ -1,4 +1,3 @@
-# Must disable Azure Key Vault network restrictions for this workflow, then re-enable.
 name: Build and deploy Sayyit.Db (DACPAC) to Azure SQL
 
 on:
@@ -24,9 +23,11 @@ env:
   CONFIGURATION: Release
   DACPAC_NAME: sayyit-db.dacpac
   RESOURCE_GROUP: sayyitadmin_rg1
-  # choose server/db by branch name (main -> prod, otherwise dev)
+
+  # main -> production; env/dev -> development
   AZURE_SQL_SERVER_FQDN: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-sqlserver.database.windows.net' || 'sayyit-dev-sqlserver.database.windows.net' }}
   AZURE_SQL_DB: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-db' || 'sayyit-dev-db' }}
+  KEYVAULT_NAME: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-kv' || 'sayyit-dev-kv' }}
 
 jobs:
   build:
@@ -52,7 +53,6 @@ jobs:
             throw "msbuild failed with exit code $LASTEXITCODE"
           }
 
-          # Find generated .dacpac
           $dacpac = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter '*.dacpac' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
           if (-not $dacpac) {
@@ -76,7 +76,8 @@ jobs:
     name: Deploy DACPAC to Azure SQL
     needs: build
     runs-on: windows-latest
-    # deploy only on push or merged PRs
+
+    # Deploy for a push, a manual dispatch, or a pull request that was merged.
     if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
 
     steps:
@@ -90,9 +91,11 @@ jobs:
         shell: pwsh
         run: |
           $dacpac = Join-Path $env:RUNNER_TEMP "site/${{ env.DACPAC_NAME }}"
+
           if (-not (Test-Path $dacpac)) {
             throw "Downloaded DACPAC does not exist: $dacpac"
           }
+
           Write-Host "Using DACPAC: $dacpac"
 
       - name: Azure login
@@ -102,16 +105,34 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: 988f19e5-f513-485b-8cab-247ba99e2f67
 
+      - name: Determine GitHub runner public IP
+        shell: pwsh
+        run: |
+          $runnerIp = (Invoke-RestMethod -Uri 'https://api.ipify.org').ToString().Trim()
+
+          if ([string]::IsNullOrWhiteSpace($runnerIp)) {
+            throw "Could not determine GitHub runner public IP."
+          }
+
+          "GITHUB_RUNNER_PUBLIC_IP=$runnerIp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "GitHub runner public IP: $runnerIp"
+
       - name: Temporarily allow SQL access from GitHub runner
         shell: pwsh
         run: |
           $serverFqdn = '${{ env.AZURE_SQL_SERVER_FQDN }}'
           $serverName = $serverFqdn.Split('.')[0]
           $resourceGroup = '${{ env.RESOURCE_GROUP }}'
+          $runnerIp = $env:GITHUB_RUNNER_PUBLIC_IP
+
+          if ([string]::IsNullOrWhiteSpace($runnerIp)) {
+            throw "GITHUB_RUNNER_PUBLIC_IP is not available."
+          }
 
           $originalPublicNetworkAccess = (az sql server show --name $serverName --resource-group $resourceGroup --query publicNetworkAccess -o tsv).Trim()
+
           if (-not $originalPublicNetworkAccess) {
-            throw "Could not read current SQL publicNetworkAccess for $serverName"
+            throw "Could not read current SQL publicNetworkAccess for $serverName."
           }
 
           "SQL_SERVER_NAME=$serverName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -119,24 +140,44 @@ jobs:
 
           if ($originalPublicNetworkAccess -ne 'Enabled') {
             az sql server update --name $serverName --resource-group $resourceGroup --set publicNetworkAccess=Enabled
+
             if ($LASTEXITCODE -ne 0) {
-              throw "Failed to enable public network access on SQL server $serverName"
+              throw "Failed to enable public network access on SQL server $serverName."
             }
           }
 
-          $runnerIp = (Invoke-RestMethod -Uri 'https://api.ipify.org').ToString().Trim()
-          if (-not $runnerIp) {
-            throw "Could not determine GitHub runner public IP"
-          }
-
           $ruleName = "gha-${{ github.run_id }}-${{ github.run_attempt }}"
+
           az sql server firewall-rule create --resource-group $resourceGroup --server $serverName --name $ruleName --start-ip-address $runnerIp --end-ip-address $runnerIp
+
           if ($LASTEXITCODE -ne 0) {
-            throw "Failed to create SQL firewall rule $ruleName for IP $runnerIp"
+            throw "Failed to create SQL firewall rule $ruleName for IP $runnerIp."
           }
 
           "SQL_FIREWALL_RULE_NAME=$ruleName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Added temporary SQL firewall rule $ruleName for runner IP $runnerIp"
+          Write-Host "Added temporary SQL firewall rule $ruleName for runner IP $runnerIp."
+
+      - name: Temporarily allow Key Vault access from GitHub runner
+        shell: pwsh
+        run: |
+          $vaultName = '${{ env.KEYVAULT_NAME }}'
+          $resourceGroup = '${{ env.RESOURCE_GROUP }}'
+          $runnerIp = $env:GITHUB_RUNNER_PUBLIC_IP
+
+          if ([string]::IsNullOrWhiteSpace($runnerIp)) {
+            throw "GITHUB_RUNNER_PUBLIC_IP is not available."
+          }
+
+          Write-Host "Adding temporary Key Vault firewall access for runner IP $runnerIp to $vaultName."
+
+          az keyvault network-rule add --resource-group $resourceGroup --name $vaultName --ip-address $runnerIp
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to add Key Vault firewall rule for runner IP $runnerIp on vault $vaultName."
+          }
+
+          "KEYVAULT_FIREWALL_RULE_IP=$runnerIp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Added temporary Key Vault firewall access for runner IP $runnerIp."
 
       - name: Install SqlPackage
         shell: pwsh
@@ -157,15 +198,18 @@ jobs:
           AZURE_SQL_SERVER_FQDN: ${{ env.AZURE_SQL_SERVER_FQDN }}
           AZURE_SQL_DB: ${{ env.AZURE_SQL_DB }}
           SQL_ADMIN_USERNAME: ${{ secrets.SQL_ADMIN_USERNAME }}
-          KEYVAULT_NAME: ${{ (github.ref_name == 'main' || github.base_ref == 'main') && 'sayyit-prod-kv' || 'sayyit-dev-kv' }}
+          KEYVAULT_NAME: ${{ env.KEYVAULT_NAME }}
         run: |
           $dacpac = $env:DACPAC_PATH
           $server = $env:AZURE_SQL_SERVER_FQDN
           $db = $env:AZURE_SQL_DB
           $user = $env:SQL_ADMIN_USERNAME
-
-          # retrieve the SQL admin password from Key Vault (secret name: sqlServerAdministratorPassword)
           $vault = $env:KEYVAULT_NAME
+
+          if ([string]::IsNullOrWhiteSpace($user)) {
+            throw "SQL_ADMIN_USERNAME is empty. Verify the GitHub repository secret."
+          }
+
           Write-Host "Retrieving sqlServerAdministratorPassword from Key Vault: $vault"
 
           $secretValueRaw = & az keyvault secret show --vault-name $vault --name sqlServerAdministratorPassword --query value -o tsv 2>&1
@@ -173,18 +217,19 @@ jobs:
 
           if ($secretExitCode -ne 0) {
             $secretError = ($secretValueRaw | Out-String).Trim()
-            throw "Failed to retrieve sqlServerAdministratorPassword from Key Vault '$vault' (exit code $secretExitCode). Verify Key Vault RBAC/network rules and secret name. az output: $secretError"
+            throw "Failed to retrieve sqlServerAdministratorPassword from Key Vault '$vault' (exit code $secretExitCode). Verify Key Vault RBAC, firewall rules, and secret name. az output: $secretError"
           }
 
           $pwd = ($secretValueRaw | Out-String).Trim()
+
           if ([string]::IsNullOrWhiteSpace($pwd)) {
             throw "Key Vault '$vault' returned an empty value for secret 'sqlServerAdministratorPassword'."
           }
 
           Write-Host "Publishing $dacpac -> $server/$db as $user"
 
-          # locate sqlpackage command (installed via dotnet tool)
           $sqlPackageCommand = Get-Command sqlpackage -ErrorAction SilentlyContinue | Select-Object -First 1
+
           if (-not $sqlPackageCommand) {
             $sqlPackageCommand = Get-Command SqlPackage.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           }
@@ -196,42 +241,27 @@ jobs:
           $sqlPackage = $sqlPackageCommand.Path
           $publishReport = Join-Path $env:RUNNER_TEMP 'publish-report.xml'
 
-          & $sqlPackage "/Action:Publish" "/SourceFile:$dacpac" "/TargetServerName:$server" "/TargetDatabaseName:$db" "/TargetUser:$user" "/TargetPassword:$pwd" "/p:BlockOnPossibleDataLoss=True" "/DeployReportPath:$publishReport"
+          & $sqlPackage `
+            "/Action:Publish" `
+            "/SourceFile:$dacpac" `
+            "/TargetServerName:$server" `
+            "/TargetDatabaseName:$db" `
+            "/TargetUser:$user" `
+            "/TargetPassword:$pwd" `
+            "/p:BlockOnPossibleDataLoss=True" `
+            "/DeployReportPath:$publishReport"
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "SqlPackage exit code: $LASTEXITCODE"
-            throw "SqlPackage publish failed"
+            throw "SqlPackage publish failed."
           }
 
           Write-Host "Publish report saved to: $publishReport"
 
-      - name: Remove temporary SQL firewall access and restore SQL network setting
+      - name: Remove temporary firewall access and restore SQL network setting
         if: always()
         shell: pwsh
         run: |
-          $serverName = $env:SQL_SERVER_NAME
           $resourceGroup = '${{ env.RESOURCE_GROUP }}'
-          $ruleName = $env:SQL_FIREWALL_RULE_NAME
-          $originalPublicNetworkAccess = $env:SQL_PUBLIC_NETWORK_ACCESS_ORIGINAL
 
-          if ($serverName -and $ruleName) {
-            az sql server firewall-rule delete --resource-group $resourceGroup --server $serverName --name $ruleName
-            if ($LASTEXITCODE -ne 0) {
-              Write-Warning "Failed to delete temporary SQL firewall rule $ruleName"
-            }
-          }
-
-          if ($serverName -and $originalPublicNetworkAccess) {
-            az sql server update --name $serverName --resource-group $resourceGroup --set publicNetworkAccess=$originalPublicNetworkAccess
-            if ($LASTEXITCODE -ne 0) {
-              Write-Warning "Failed to restore SQL public network access to $originalPublicNetworkAccess"
-            }
-          }
-
-      - name: Upload publish report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sayyit-db-publish-report
-          path: ${{ runner.temp }}/publish-report.xml
-          if-no-files-found: ignore
+          $keyVaultName = '${{ env.KEYVAULT_NAME }}'
