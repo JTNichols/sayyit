@@ -31,8 +31,13 @@ GitHub repositories:
 
     Azure infrastructure is defined in main.bicep.
 
+
 Application architecture:
 
+    This application depends on infrastructure defined at E:\Sync\Jason\Dev\Repo\SayyitInfrastructure\infra.
+    When changes affect hosting, auth, deployment, app settings, Azure resources, or CI/CD, inspect that infrastructure project.
+    Treat that infra repo as the source of truth for Azure resource definitions.
+    
     Front end is a Blazor WebAssembly Standalone App.
 
     Back end is a single RESTful API written in .NET 10 and C#.
@@ -41,17 +46,22 @@ Application architecture:
 
 Azure environment:
 
-    Subscription: sayyit.subscription
+    1. Workforce tenant: sayyitadmin.onmicrosoft.com
+        a. Subscription in workflow tenant: sayyitadmin.subscription
 
-    Azure domain: sayyit.onmicrosoft.com
+ 
+    2. External Configuration tenant: sayyit.onmicrosoft.com
+        a. Subscription in workflow tenant: sayyit.subscription
 
-    Resource Group: sayyit_rg1
+        b. Resource Group: sayyit_rg1   
 
 Azure infrastructure naming:
 
     Azure resource names are derived from main.bicep using the pattern sayyit-<env>-<resource>.
 
-    Web App: sayyit-<env>-web.
+    Web App: sayyit-<env>-webapp.
+
+    Web API: Web App: sayyit-<env>-apiapp.
 
     Key Vault: sayyit-<env>-kv.
 
