@@ -24,10 +24,12 @@ namespace Sayyit.Web
 
                 options.ProviderOptions.LoginMode = "redirect";
                 options.ProviderOptions.Authentication.KnownAuthorities.Add("sayyit.ciamlogin.com");
+                options.ProviderOptions.Authentication.RedirectUri = $"{builder.HostEnvironment.BaseAddress}authentication/login-callback";
+                options.ProviderOptions.Authentication.PostLogoutRedirectUri = builder.HostEnvironment.BaseAddress;
 
                 options.ProviderOptions.DefaultAccessTokenScopes.Add("openid");
                 options.ProviderOptions.DefaultAccessTokenScopes.Add("profile");
-                 
+
                 //builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
                 //options.ProviderOptions.DefaultAccessTokenScopes
                 //    .Add("https://graph.microsoft.com/User.Read");
