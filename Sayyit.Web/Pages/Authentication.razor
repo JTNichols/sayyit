@@ -1,7 +1,111 @@
 ﻿@page "/authentication/{action}"
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
-<RemoteAuthenticatorView Action="@Action" />
+@using Sayyit.Contracts.User
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient HttpClient
+@inject IConfiguration Configuration
+
+<RemoteAuthenticatorView Action="@Action" OnLogInSucceeded="HandleLogInSucceeded" />
 
 @code {
     [Parameter] public string? Action { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(Action, "logged-out", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private async Task HandleLogInSucceeded(RemoteAuthenticationState _)
+    {
+        var apiBaseUrl = ResolveApiBaseUrl();
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return;
+        }
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var entraObjectId = GetClaimValue(user, "oid", "sub");
+        var tenantId = GetClaimValue(user, "tid");
+        if (string.IsNullOrWhiteSpace(entraObjectId) || string.IsNullOrWhiteSpace(tenantId))
+        {
+            Console.Error.WriteLine("[AuthSync] Missing required user claims for API sync.");
+            return;
+        }
+
+        if (!Guid.TryParse(entraObjectId, out var parsedEntraObjectId) ||
+            !Guid.TryParse(tenantId, out var parsedTenantId))
+        {
+            Console.Error.WriteLine("[AuthSync] User claims were not valid GUID values for API sync.");
+            return;
+        }
+
+        var request = new UserSync
+        {
+            EntraObjectId = parsedEntraObjectId,
+            TenantId = parsedTenantId,
+            UserName = GetClaimValue(user, "preferred_username", ClaimTypes.Name),
+            DisplayName = GetClaimValue(user, "name", ClaimTypes.Name) ?? string.Empty,
+            Email = GetClaimValue(user, "email", ClaimTypes.Email)
+        };
+
+        using var response = await HttpClient.PostAsJsonAsync(
+            $"{apiBaseUrl.TrimEnd('/')}/api/users/sync",
+            request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; Body: {responseBody}");
+        }
+    }
+
+    private string? ResolveApiBaseUrl()
+    {
+        var configuredApiBaseUrl = Configuration["Api:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(configuredApiBaseUrl))
+        {
+            return null;
+        }
+
+        var currentHost = new Uri(Navigation.BaseUri).Host;
+
+        if (currentHost.Contains("sayyit-prod-webapp", StringComparison.OrdinalIgnoreCase) &&
+            configuredApiBaseUrl.Contains("sayyit-dev-apiapp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://sayyit-prod-apiapp.azurewebsites.net";
+        }
+
+        if (currentHost.Contains("sayyit-dev-webapp", StringComparison.OrdinalIgnoreCase) &&
+            configuredApiBaseUrl.Contains("sayyit-prod-apiapp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://sayyit-dev-apiapp.azurewebsites.net";
+        }
+
+        return configuredApiBaseUrl;
+    }
+
+    private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)
+    {
+        foreach (var claimType in claimTypes)
+        {
+            var value = user.FindFirst(claimType)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
 }
