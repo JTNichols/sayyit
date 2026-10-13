@@ -14,6 +14,8 @@ var delimitedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.E
 var allowedOrigins = configuredOrigins
     .Concat(delimitedOrigins)
     .Concat([
+        "https://localhost:7082",
+        "https://localhost:7176",
         "https://sayyit-dev-webapp.azurewebsites.net",
         "https://sayyit-prod-webapp.azurewebsites.net"
     ])

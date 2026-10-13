@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Sayyit.API.Models;
+namespace Sayyit.Contracts.User;
 
-public sealed class UserSyncRequest
+public sealed class UserSync
 {
     [Required]
     public Guid EntraObjectId { get; init; }

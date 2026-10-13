@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Sayyit.API.Models;
 using Sayyit.API.Services;
+using Sayyit.Contracts.User;
 
 namespace Sayyit.API.Controllers;
 
@@ -12,7 +12,7 @@ public sealed class UsersController(UserSyncService userSyncService) : Controlle
     private readonly UserSyncService _userSyncService = userSyncService;
 
     [HttpPost("sync")]
-    public async Task<IActionResult> SyncAsync([FromBody] UserSyncRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SyncAsync([FromBody] UserSync request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.DisplayName))
         {

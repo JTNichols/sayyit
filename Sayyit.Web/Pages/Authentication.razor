@@ -1,6 +1,7 @@
 ﻿@page "/authentication/{action}"
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Sayyit.Contracts.User
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient HttpClient
@@ -21,7 +22,7 @@
 
     private async Task HandleLogInSucceeded(RemoteAuthenticationState _)
     {
-        var apiBaseUrl = Configuration["Api:BaseUrl"];
+        var apiBaseUrl = ResolveApiBaseUrl();
         if (string.IsNullOrWhiteSpace(apiBaseUrl))
         {
             return;
@@ -42,10 +43,17 @@
             return;
         }
 
-        var request = new
+        if (!Guid.TryParse(entraObjectId, out var parsedEntraObjectId) ||
+            !Guid.TryParse(tenantId, out var parsedTenantId))
         {
-            EntraObjectId = entraObjectId,
-            TenantId = tenantId,
+            Console.Error.WriteLine("[AuthSync] User claims were not valid GUID values for API sync.");
+            return;
+        }
+
+        var request = new UserSync
+        {
+            EntraObjectId = parsedEntraObjectId,
+            TenantId = parsedTenantId,
             UserName = GetClaimValue(user, "preferred_username", ClaimTypes.Name),
             DisplayName = GetClaimValue(user, "name", ClaimTypes.Name) ?? string.Empty,
             Email = GetClaimValue(user, "email", ClaimTypes.Email)
@@ -60,6 +68,31 @@
             var responseBody = await response.Content.ReadAsStringAsync();
             Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; Body: {responseBody}");
         }
+    }
+
+    private string? ResolveApiBaseUrl()
+    {
+        var configuredApiBaseUrl = Configuration["Api:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(configuredApiBaseUrl))
+        {
+            return null;
+        }
+
+        var currentHost = new Uri(Navigation.BaseUri).Host;
+
+        if (currentHost.Contains("sayyit-prod-webapp", StringComparison.OrdinalIgnoreCase) &&
+            configuredApiBaseUrl.Contains("sayyit-dev-apiapp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://sayyit-prod-apiapp.azurewebsites.net";
+        }
+
+        if (currentHost.Contains("sayyit-dev-webapp", StringComparison.OrdinalIgnoreCase) &&
+            configuredApiBaseUrl.Contains("sayyit-prod-apiapp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://sayyit-dev-apiapp.azurewebsites.net";
+        }
+
+        return configuredApiBaseUrl;
     }
 
     private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)

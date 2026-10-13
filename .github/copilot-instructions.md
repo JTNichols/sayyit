@@ -165,6 +165,11 @@ When generating code, documentation, tests, or refactors, assume the following u
 - Design schema and queries for auditability, moderation transparency, and future analytics
 - Treat left/right scoring, moderation votes, and user actions as domain records that may need traceability
 - Avoid destructive data operations unless explicitly requested
+-
+### Data Transfer objects
+- Use project Sayyit.Contracts for DTOs between API and Blazor frontend
+- Whenever possible use the Sayyit.Contracts models for API endpoints and Blazor view objects instead of creating new classes
+- prefer adding new properties to existing DTOs rather than creating new DTOs unless the new property is a back-end secret or otherwise sensitive
 
 ## Domain Rules to Protect
 

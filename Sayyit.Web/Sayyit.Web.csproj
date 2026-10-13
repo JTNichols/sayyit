@@ -19,4 +19,8 @@
     <Folder Include="wwwroot\sample-data\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Sayyit.Contracts\Sayyit.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

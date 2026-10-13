@@ -1,5 +1,5 @@
 using Microsoft.Data.SqlClient;
-using Sayyit.API.Models;
+using Sayyit.Contracts.User;
 
 namespace Sayyit.API.Services;
 
@@ -18,7 +18,7 @@ public sealed class UserSyncService
         _connectionString = connectionString;
     }
 
-    public async Task SyncAsync(UserSyncRequest request, CancellationToken cancellationToken)
+    public async Task SyncAsync(UserSync request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
