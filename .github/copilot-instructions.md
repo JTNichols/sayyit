@@ -23,7 +23,7 @@
 
 ### Infrastructure as Code Repository
 - **Repo**: JTNichols/sayyit-iac
-- **Format**: Azure Bicep (main.bicep)
+- **Format**: Azure Bicep, main.dev.bicep for dev environment, main.prod.bicep for production
 - **Source of Truth**: E:\Sync\Jason\Dev\Repo\SayyitInfrastructure\infra – always inspect for hosting, auth, deployment, app settings, Azure resources, or CI/CD changes
 
 ## Application Architecture
@@ -230,7 +230,7 @@ Copilot should preserve these product assumptions in all generated code:
 - Prefer OIDC/federated credentials for Azure login over publish profiles or long-lived secrets
 - Preserve branch and environment assumptions unless the task explicitly changes release flow
 - Document any newly required repository secrets or environment variables
-- Current workflow pattern: login with azure/login@v2, deploy main.bicep to sayyit_rg1, use helper scripts to create/manage federated credentials
+- Current workflow pattern: login with azure/login@v2, deploy main.<env>.bicep to sayyit_rg1, use helper scripts to create/manage federated credentials
 
 ## Documentation Guidance
 
