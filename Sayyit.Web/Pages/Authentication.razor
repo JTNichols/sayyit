@@ -56,7 +56,7 @@
 
         try
         {
-            using var response = await apiClient.PostAsJsonAsync("api/users/sync", request);
+            using var response = await apiClient.PostAsJsonAsync("api/me/bootstrap", request);
 
             if (!response.IsSuccessStatusCode)
             {
