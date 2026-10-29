@@ -6,13 +6,13 @@ using Sayyit.Contracts.User;
 namespace Sayyit.API.Controllers;
 
 [ApiController]
-[Route("api/users")]
-public sealed class UsersController(UserSyncService userSyncService) : ControllerBase
+[Route("api/me")]
+public sealed class MeController(BootstrapService bootstrapService) : ControllerBase
 {
-    private readonly UserSyncService _userSyncService = userSyncService;
+    private readonly BootstrapService _bootstrapService = bootstrapService;
 
-    [HttpPost("sync")]
-    public async Task<IActionResult> SyncAsync([FromBody] UserSync request, CancellationToken cancellationToken)
+    [HttpPost("bootstrap")]
+    public async Task<IActionResult> BootstrapAsync([FromBody] UserBootstrap request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.DisplayName))
         {
@@ -22,7 +22,7 @@ public sealed class UsersController(UserSyncService userSyncService) : Controlle
 
         try
         {
-            await _userSyncService.SyncAsync(request, cancellationToken);
+            await _bootstrapService.BootstrapAsync(request, cancellationToken);
             return NoContent();
         }
         catch (SqlException ex) when (ex.Number is 2627 or 2601)

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Sayyit.Contracts.User;
 
-public sealed class UserSync
+public sealed class UserBootstrap
 {
     [Required]
     public Guid EntraObjectId { get; init; }

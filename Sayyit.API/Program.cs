@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<UserSyncService>();
+builder.Services.AddScoped<BootstrapService>();
 
 var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 var delimitedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
@@ -60,7 +60,7 @@ else
     }
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

@@ -3,11 +3,11 @@ using Sayyit.Contracts.User;
 
 namespace Sayyit.API.Services;
 
-public sealed class UserSyncService
+public sealed class BootstrapService
 {
     private readonly string _connectionString;
 
-    public UserSyncService(IConfiguration configuration)
+    public BootstrapService(IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("SayyitDb");
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -18,7 +18,7 @@ public sealed class UserSyncService
         _connectionString = connectionString;
     }
 
-    public async Task SyncAsync(UserSync request, CancellationToken cancellationToken)
+    public async Task BootstrapAsync(UserBootstrap request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 

@@ -4,8 +4,7 @@
 @using Sayyit.Contracts.User
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject HttpClient HttpClient
-@inject IConfiguration Configuration
+@inject IHttpClientFactory HttpClientFactory
 
 <RemoteAuthenticatorView Action="@Action" OnLogInSucceeded="HandleLogInSucceeded" />
 
@@ -22,12 +21,6 @@
 
     private async Task HandleLogInSucceeded(RemoteAuthenticationState _)
     {
-        var apiBaseUrl = ResolveApiBaseUrl();
-        if (string.IsNullOrWhiteSpace(apiBaseUrl))
-        {
-            return;
-        }
-
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         if (user.Identity?.IsAuthenticated != true)
@@ -50,7 +43,7 @@
             return;
         }
 
-        var request = new UserSync
+        var request = new UserBootstrap
         {
             EntraObjectId = parsedEntraObjectId,
             TenantId = parsedTenantId,
@@ -59,40 +52,22 @@
             Email = GetClaimValue(user, "email", ClaimTypes.Email)
         };
 
-        using var response = await HttpClient.PostAsJsonAsync(
-            $"{apiBaseUrl.TrimEnd('/')}/api/users/sync",
-            request);
+        var apiClient = HttpClientFactory.CreateClient("ApiClient");
 
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var responseBody = await response.Content.ReadAsStringAsync();
-            Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; Body: {responseBody}");
-        }
-    }
+            using var response = await apiClient.PostAsJsonAsync("api/users/sync", request);
 
-    private string? ResolveApiBaseUrl()
-    {
-        var configuredApiBaseUrl = Configuration["Api:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(configuredApiBaseUrl))
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; Body: {responseBody}");
+            }
+        }
+        catch (AccessTokenNotAvailableException ex)
         {
-            return null;
+            ex.Redirect();
         }
-
-        var currentHost = new Uri(Navigation.BaseUri).Host;
-
-        if (currentHost.Contains("sayyit-prod-webapp", StringComparison.OrdinalIgnoreCase) &&
-            configuredApiBaseUrl.Contains("sayyit-dev-apiapp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "https://sayyit-prod-apiapp.azurewebsites.net";
-        }
-
-        if (currentHost.Contains("sayyit-dev-webapp", StringComparison.OrdinalIgnoreCase) &&
-            configuredApiBaseUrl.Contains("sayyit-prod-apiapp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "https://sayyit-dev-apiapp.azurewebsites.net";
-        }
-
-        return configuredApiBaseUrl;
     }
 
     private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)
