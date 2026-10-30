@@ -54,7 +54,8 @@ namespace Sayyit.Web
             .AddHttpMessageHandler<ApiAuthorizationMessageHandler>();
 
             Console.WriteLine($"Client Hosting Environment: {builder.HostEnvironment.Environment}");
-
+            Console.WriteLine($"Sayyit configuration ClientId: {builder.Configuration["AzureAd:ClientId"]}");
+            Console.WriteLine($"Sayyit API scope: {builder.Configuration["Api:Scope"]}");
             await builder.Build().RunAsync();
         }
     }
