@@ -13,7 +13,12 @@ namespace Sayyit.Web
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
             var environment = builder.HostEnvironment.Environment;
-            var environmentSettingsFile = $"appsettings.{environment}.json";
+            var currentHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
+
+            var environmentSettingsFile = currentHost.Contains("sayyit-dev-webapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase)
+                ? "appsettings.Dev.json"
+                : $"appsettings.{environment}.json";
+
             using (var startupHttpClient = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) })
             {
                 using var environmentSettingsResponse = await startupHttpClient.GetAsync(environmentSettingsFile);

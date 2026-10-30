@@ -57,9 +57,12 @@ jobs:
             Remove-Item $publish -Recurse -Force
           }
 
+          $wasmEnvironment = if ('${{ env.ENV_NAME }}' -eq 'prod') { 'Production' } else { 'Dev' }
+
           dotnet publish '${{ env.WORKING_DIRECTORY }}' `
             --configuration '${{ env.CONFIGURATION }}' `
-            --output $publish
+            --output $publish `
+            -p:WasmApplicationEnvironmentName=$wasmEnvironment
 
           if ($LASTEXITCODE -ne 0) {
             throw "dotnet publish failed with exit code $LASTEXITCODE."
