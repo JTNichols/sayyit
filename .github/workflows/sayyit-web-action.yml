@@ -56,7 +56,8 @@ jobs:
           if (Test-Path $publish) {
             Remove-Item $publish -Recurse -Force
           }
-          
+          # This is Microsoft’s documented .NET 10 mechanism for setting blazor WASM environment name at publish time. 
+          # It will be used by the Blazor boot script to set the Blazor-Environment header in the browser.
           $wasmEnvironment = if ('${{ env.ENV_NAME }}' -eq 'prod') { 'Production' } else { 'Dev' }
 
           dotnet publish '${{ env.WORKING_DIRECTORY }}' `
@@ -68,58 +69,7 @@ jobs:
             throw "dotnet publish failed with exit code $LASTEXITCODE."
           }
 
-      - name: Stamp Blazor environment header
-        shell: pwsh
-        run: |
-          $publish = Join-Path $env:RUNNER_TEMP '${{ env.PUBLISH_DIRECTORY }}'
-          $webConfig = Join-Path $publish 'web.config'
-
-          if (-not (Test-Path $webConfig)) {
-            throw "Missing web.config at publish root: $webConfig"
-          }
-
-          $blazorEnvironment = if ('${{ env.ENV_NAME }}' -eq 'prod') { 'Production' } else { 'Dev' }
-
-          [xml]$xml = Get-Content $webConfig
-
-          $configuration = $xml.configuration
-          if (-not $configuration) {
-            throw 'Invalid web.config: missing <configuration> root element.'
-          }
-
-          $systemWebServer = $configuration.'system.webServer'
-          if (-not $systemWebServer) {
-            $systemWebServer = $xml.CreateElement('system.webServer')
-            [void]$configuration.AppendChild($systemWebServer)
-          }
-
-          $httpProtocol = $systemWebServer.httpProtocol
-          if (-not $httpProtocol) {
-            $httpProtocol = $xml.CreateElement('httpProtocol')
-            [void]$systemWebServer.AppendChild($httpProtocol)
-          }
-
-          $customHeaders = $httpProtocol.customHeaders
-          if (-not $customHeaders) {
-            $customHeaders = $xml.CreateElement('customHeaders')
-            [void]$httpProtocol.AppendChild($customHeaders)
-          }
-
-          $header = @($customHeaders.add | Where-Object { $_.name -eq 'Blazor-Environment' } | Select-Object -First 1)
-
-          if ($header.Count -eq 0) {
-            $header = $xml.CreateElement('add')
-            [void]$header.SetAttribute('name', 'Blazor-Environment')
-            [void]$header.SetAttribute('value', $blazorEnvironment)
-            [void]$customHeaders.AppendChild($header)
-          }
-          else {
-            [void]$header[0].SetAttribute('value', $blazorEnvironment)
-          }
-
-          $xml.Save($webConfig)
-          Write-Host "Blazor-Environment header set to '$blazorEnvironment' in web.config."
-
+      
       - name: Verify published Blazor output
         shell: pwsh
         run: |
