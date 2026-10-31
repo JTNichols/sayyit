@@ -12,7 +12,7 @@ namespace Sayyit.Web
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
-            //var environment = builder.HostEnvironment.Environment;
+            var environment = builder.HostEnvironment.Environment;
             //var currentHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
 
             //var environmentSettingsFile = currentHost.Contains("sayyit-dev-webapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase)
