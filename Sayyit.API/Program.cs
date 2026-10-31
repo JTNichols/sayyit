@@ -1,17 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Sayyit.API.Services;
 
-var builder = WebApplication.CreateBuilder(args);
-
-var websiteHostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
-//if (builder.Environment.IsProduction() &&
-//    !string.IsNullOrWhiteSpace(websiteHostName) &&
-//    websiteHostName.Contains("sayyit-dev-apiapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase))
-//{
-//    builder.Configuration.AddJsonFile("appsettings.Dev.json", optional: true, reloadOnChange: false);
-//}
-
-// Add services to the container.
+var builder = WebApplication.CreateBuilder(args);  
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -80,7 +70,8 @@ app.UseCors("WebClientPolicy");
 app.UseAuthorization();
 
 app.MapControllers();
-// Debug console logs
+// Console debug output 
+var websiteHostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
 Console.WriteLine($"[Startup] Environment: {app.Environment.EnvironmentName}\n; " +
     $"AllowedOrigins: {string.Join(", ", allowedOrigins)} \n"+
     $"WebsiteHostName: {websiteHostName} \n");
