@@ -3,6 +3,14 @@ using Sayyit.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var websiteHostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
+if (builder.Environment.IsProduction() &&
+    !string.IsNullOrWhiteSpace(websiteHostName) &&
+    websiteHostName.Contains("sayyit-dev-apiapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Configuration.AddJsonFile("appsettings.Dev.json", optional: true, reloadOnChange: false);
+}
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
