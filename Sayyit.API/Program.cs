@@ -27,9 +27,10 @@ if (authority.EndsWith("/v2.0", StringComparison.OrdinalIgnoreCase))
     authority = authority[..^"/v2.0".Length];
 }
 
-var metadataAddress = $"{authority}/v2.0/.well-known/openid-configuration";
+var tenantAuthority = $"https://{tenantId}.ciamlogin.com/{tenantId}";
+var metadataAddress = $"{tenantAuthority}/v2.0/.well-known/openid-configuration";
 var customDomainIssuer = $"{authority}/v2.0";
-var tenantIdIssuer = $"https://{tenantId}.ciamlogin.com/{tenantId}/v2.0";
+var tenantIdIssuer = $"{tenantAuthority}/v2.0";
 var bareAudience = audience.StartsWith("api://", StringComparison.OrdinalIgnoreCase)
     ? audience["api://".Length..]
     : audience;
@@ -50,7 +51,7 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = authority;
+        options.Authority = tenantAuthority;
         options.MetadataAddress = metadataAddress;
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
@@ -113,7 +114,7 @@ else
     }
 }
 
-logger.LogInformation("Token validation configured. Authority: {Authority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}; ValidIssuers: {ValidIssuers}", authority, metadataAddress, string.Join(", ", validAudiences), string.Join(", ", validIssuers));
+logger.LogInformation("Token validation configured. ConfigAuthority: {ConfigAuthority}; ValidationAuthority: {ValidationAuthority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}; ValidIssuers: {ValidIssuers}", authority, tenantAuthority, metadataAddress, string.Join(", ", validAudiences), string.Join(", ", validIssuers));
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
 {
