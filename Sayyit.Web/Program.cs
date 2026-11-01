@@ -13,7 +13,7 @@ namespace Sayyit.Web
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
             var environment = builder.HostEnvironment.Environment;
-            //var currentHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
+            var currentHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
 
             //var environmentSettingsFile = currentHost.Contains("sayyit-dev-webapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase)
             //    ? "appsettings.Dev.json"
@@ -60,6 +60,11 @@ namespace Sayyit.Web
             });
 
             var apiBaseUrl = builder.Configuration["Api:BaseUrl"];
+            if (string.Equals(currentHost, "localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                apiBaseUrl = "https://localhost:5601";
+            }
+
             if (string.IsNullOrWhiteSpace(apiBaseUrl))
             {
                 throw new InvalidOperationException("Configuration value 'Api:BaseUrl' is required.");
@@ -76,6 +81,7 @@ namespace Sayyit.Web
             Console.WriteLine($"Client Hosting Environment: {builder.HostEnvironment.Environment}");
             Console.WriteLine($"Sayyit configuration ClientId: {builder.Configuration["AzureAd:ClientId"]}");
             Console.WriteLine($"Sayyit API scope: {builder.Configuration["Api:Scope"]}");
+            Console.WriteLine($"Sayyit API base URL: {apiBaseAddress}");
             await builder.Build().RunAsync();
         }
     }
