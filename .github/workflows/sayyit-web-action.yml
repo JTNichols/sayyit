@@ -56,15 +56,20 @@ jobs:
           if (Test-Path $publish) {
             Remove-Item $publish -Recurse -Force
           }
+          # This is Microsoft’s documented .NET 10 mechanism for setting blazor WASM environment name at publish time. 
+          # It will be used by the Blazor boot script to set the Blazor-Environment header in the browser.
+          $wasmEnvironment = if ('${{ env.ENV_NAME }}' -eq 'prod') { 'Production' } else { 'Dev' }
 
           dotnet publish '${{ env.WORKING_DIRECTORY }}' `
             --configuration '${{ env.CONFIGURATION }}' `
-            --output $publish
+            --output $publish `
+            -p:WasmApplicationEnvironmentName=$wasmEnvironment
 
           if ($LASTEXITCODE -ne 0) {
             throw "dotnet publish failed with exit code $LASTEXITCODE."
           }
 
+      
       - name: Verify published Blazor output
         shell: pwsh
         run: |

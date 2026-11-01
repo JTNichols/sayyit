@@ -28,25 +28,10 @@
             return;
         }
 
-        var entraObjectId = GetClaimValue(user, "oid", "sub");
-        var tenantId = GetClaimValue(user, "tid");
-        if (string.IsNullOrWhiteSpace(entraObjectId) || string.IsNullOrWhiteSpace(tenantId))
-        {
-            Console.Error.WriteLine("[AuthSync] Missing required user claims for API sync.");
-            return;
-        }
-
-        if (!Guid.TryParse(entraObjectId, out var parsedEntraObjectId) ||
-            !Guid.TryParse(tenantId, out var parsedTenantId))
-        {
-            Console.Error.WriteLine("[AuthSync] User claims were not valid GUID values for API sync.");
-            return;
-        }
-
         var request = new UserBootstrap
         {
-            EntraObjectId = parsedEntraObjectId,
-            TenantId = parsedTenantId,
+            EntraObjectId = Guid.Empty,
+            TenantId = Guid.Empty,
             UserName = GetClaimValue(user, "preferred_username", ClaimTypes.Name),
             DisplayName = GetClaimValue(user, "name", ClaimTypes.Name) ?? string.Empty,
             Email = GetClaimValue(user, "email", ClaimTypes.Email)

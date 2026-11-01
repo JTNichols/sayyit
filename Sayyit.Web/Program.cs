@@ -12,10 +12,30 @@ namespace Sayyit.Web
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
+            var environment = builder.HostEnvironment.Environment;
+            //var currentHost = new Uri(builder.HostEnvironment.BaseAddress).Host;
+
+            //var environmentSettingsFile = currentHost.Contains("sayyit-dev-webapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase)
+            //    ? "appsettings.Dev.json"
+            //    : $"appsettings.{environment}.json";
+
+            //using (var startupHttpClient = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) })
+            //{
+            //    using var environmentSettingsResponse = await startupHttpClient.GetAsync(environmentSettingsFile);
+            //    if (environmentSettingsResponse.IsSuccessStatusCode)
+            //    {
+            //        await using var environmentSettingsStream = await environmentSettingsResponse.Content.ReadAsStreamAsync();
+            //        builder.Configuration.AddJsonStream(environmentSettingsStream);
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine($"[AuthConfig] Environment settings file '{environmentSettingsFile}' was not found. Status: {(int)environmentSettingsResponse.StatusCode}");
+            //    }
+            //}
+
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
             builder.Services.AddScoped<ApiAuthorizationMessageHandler>();
 
-            var environment = builder.HostEnvironment.Environment;
             var configuredAuthority = builder.Configuration["AzureAd:Authority"];
             var configuredClientId = builder.Configuration["AzureAd:ClientId"];
             Console.WriteLine($"[AuthConfig] Environment: {environment}; Authority: {configuredAuthority}; ClientIdConfigured: {!string.IsNullOrWhiteSpace(configuredClientId)}");
@@ -54,7 +74,8 @@ namespace Sayyit.Web
             .AddHttpMessageHandler<ApiAuthorizationMessageHandler>();
 
             Console.WriteLine($"Client Hosting Environment: {builder.HostEnvironment.Environment}");
-
+            Console.WriteLine($"Sayyit configuration ClientId: {builder.Configuration["AzureAd:ClientId"]}");
+            Console.WriteLine($"Sayyit API scope: {builder.Configuration["Api:Scope"]}");
             await builder.Build().RunAsync();
         }
     }

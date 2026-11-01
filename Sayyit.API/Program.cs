@@ -1,13 +1,41 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Sayyit.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var websiteHostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
+if (builder.Environment.IsProduction() &&
+    !string.IsNullOrWhiteSpace(websiteHostName) &&
+    websiteHostName.Contains("sayyit-dev-apiapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Configuration.AddJsonFile("appsettings.Dev.json", optional: true, reloadOnChange: false);
+}
+
+var authority = builder.Configuration["AzureAd:Authority"];
+var audience = builder.Configuration["AzureAd:Audience"];
+if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience))
+{
+    throw new InvalidOperationException("Configuration values 'AzureAd:Authority' and 'AzureAd:Audience' are required.");
+}
+
+authority = authority.TrimEnd('/');
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<BootstrapService>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = authority;
+        options.Audience = audience;
+        options.MapInboundClaims = false;
+    });
+
+builder.Services.AddAuthorization();
 
 var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 var delimitedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
@@ -60,6 +88,8 @@ else
     }
 }
 
+logger.LogInformation("Token validation configured. Authority: {Authority}; Audience: {Audience}", authority, audience);
+
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
 {
     app.UseSwagger();
@@ -69,8 +99,13 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("WebClientPolicy");
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+Console.WriteLine($"[Startup] Environment: {app.Environment.EnvironmentName}\n; " +
+    $"AllowedOrigins: {string.Join(", ", allowedOrigins)} \n" +
+    $"WebsiteHostName: {websiteHostName} \n");
 
 app.Run();
