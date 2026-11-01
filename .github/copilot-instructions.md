@@ -10,7 +10,7 @@
 - **IDE**: Visual Studio Community 2026 / VS Code
 - **Terminal**: Windows PowerShell / CMD
 - **OS**: Windows
-- Environments: Sayyit currently has three environments:
+- Environments: Sayyit currently has three environments. All three are loading their respective configurations correctly, don't add code to enforce environment selection:
   - **Local**: named "Development", a local development environment on a developer's machine
   - **Remotely hosted development**: named "Dev" (hosted in Azure)
   - **Remotely hosted Production**: named "Prod" (hosted in Azure)
