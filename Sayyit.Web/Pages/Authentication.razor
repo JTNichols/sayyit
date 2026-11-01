@@ -46,7 +46,12 @@
             if (!response.IsSuccessStatusCode)
             {
                 var responseBody = await response.Content.ReadAsStringAsync();
-                Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; Body: {responseBody}");
+                response.Headers.TryGetValues("WWW-Authenticate", out var wwwAuthenticateHeaderValues);
+                var wwwAuthenticateHeader = wwwAuthenticateHeaderValues is null
+                    ? "<missing>"
+                    : string.Join(" | ", wwwAuthenticateHeaderValues);
+
+                Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; WWW-Authenticate: {wwwAuthenticateHeader}; Body: {responseBody}");
             }
         }
         catch (AccessTokenNotAvailableException ex)
