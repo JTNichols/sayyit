@@ -10,10 +10,11 @@ namespace Sayyit.API.Controllers;
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public sealed class MeController(BootstrapService bootstrapService, ILogger<MeController> logger) : ControllerBase
+public sealed class MeController(BootstrapService bootstrapService, ILogger<MeController> logger, IHostEnvironment hostEnvironment) : ControllerBase
 {
     private readonly BootstrapService _bootstrapService = bootstrapService;
     private readonly ILogger<MeController> _logger = logger;
+    private readonly IHostEnvironment _hostEnvironment = hostEnvironment;
 
     [HttpPost("bootstrap")]
     public async Task<IActionResult> BootstrapAsync([FromBody] UserBootstrap request, CancellationToken cancellationToken)
@@ -54,13 +55,29 @@ public sealed class MeController(BootstrapService bootstrapService, ILogger<MeCo
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "User bootstrap failed because the API configuration is invalid.");
-            return Problem(title: "User sync is temporarily unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+            return CreateServiceUnavailableProblem("config_missing_connection_string");
         }
         catch (SqlException ex)
         {
             _logger.LogError(ex, "User bootstrap failed due to a SQL error with Number {SqlErrorNumber}.", ex.Number);
-            return Problem(title: "User sync is temporarily unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+            return CreateServiceUnavailableProblem($"sql_{ex.Number}");
         }
+    }
+
+    private ObjectResult CreateServiceUnavailableProblem(string errorCode)
+    {
+        var problemDetails = new ProblemDetails
+        {
+            Title = "User sync is temporarily unavailable.",
+            Status = StatusCodes.Status503ServiceUnavailable
+        };
+
+        if (_hostEnvironment.IsDevelopment() || _hostEnvironment.IsEnvironment("Dev"))
+        {
+            problemDetails.Extensions["code"] = errorCode;
+        }
+
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, problemDetails);
     }
 
     private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)
