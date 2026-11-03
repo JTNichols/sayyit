@@ -15,18 +15,30 @@ if (builder.Environment.IsProduction() &&
 
 var authority = builder.Configuration["AzureAd:Authority"];
 var audience = builder.Configuration["AzureAd:Audience"];
-if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience))
+var tenantId = builder.Configuration["AzureAd:TenantId"];
+if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(tenantId))
 {
-    throw new InvalidOperationException("Configuration values 'AzureAd:Authority' and 'AzureAd:Audience' are required.");
+    throw new InvalidOperationException("Configuration values 'AzureAd:Authority', 'AzureAd:Audience', and 'AzureAd:TenantId' are required.");
 }
 
 authority = authority.TrimEnd('/');
-var metadataAddress = $"{authority}/v2.0/.well-known/openid-configuration";
+if (authority.EndsWith("/v2.0", StringComparison.OrdinalIgnoreCase))
+{
+    authority = authority[..^"/v2.0".Length];
+}
+
+var tenantAuthority = $"https://{tenantId}.ciamlogin.com/{tenantId}";
+var metadataAddress = $"{tenantAuthority}/v2.0/.well-known/openid-configuration";
+var customDomainIssuer = $"{authority}/v2.0";
+var tenantIdIssuer = $"{tenantAuthority}/v2.0";
 var bareAudience = audience.StartsWith("api://", StringComparison.OrdinalIgnoreCase)
     ? audience["api://".Length..]
     : audience;
 var validAudiences = new[] { audience, bareAudience }
     .Where(value => !string.IsNullOrWhiteSpace(value))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+var validIssuers = new[] { customDomainIssuer, tenantIdIssuer }
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray();
 
@@ -39,12 +51,13 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = authority;
+        options.Authority = tenantAuthority;
         options.MetadataAddress = metadataAddress;
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidAudiences = validAudiences
+            ValidAudiences = validAudiences,
+            ValidIssuers = validIssuers
         };
     });
 
@@ -101,7 +114,7 @@ else
     }
 }
 
-logger.LogInformation("Token validation configured. Authority: {Authority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}", authority, metadataAddress, string.Join(", ", validAudiences));
+logger.LogInformation("Token validation configured. ConfigAuthority: {ConfigAuthority}; ValidationAuthority: {ValidationAuthority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}; ValidIssuers: {ValidIssuers}", authority, tenantAuthority, metadataAddress, string.Join(", ", validAudiences), string.Join(", ", validIssuers));
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
 {
