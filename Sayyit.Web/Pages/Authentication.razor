@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IHttpClientFactory HttpClientFactory
+@inject IConfiguration Configuration
 
 <RemoteAuthenticatorView Action="@Action" OnLogInSucceeded="HandleLogInSucceeded" />
 
@@ -45,13 +46,21 @@
 
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync();
-                response.Headers.TryGetValues("WWW-Authenticate", out var wwwAuthenticateHeaderValues);
-                var wwwAuthenticateHeader = wwwAuthenticateHeaderValues is null
-                    ? "<missing>"
-                    : string.Join(" | ", wwwAuthenticateHeaderValues);
+                var exposeDiagnosticDetails = Configuration.GetValue<bool>("Diagnostics:ExposeBootstrapErrorCode");
+                if (exposeDiagnosticDetails)
+                {
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    response.Headers.TryGetValues("WWW-Authenticate", out var wwwAuthenticateHeaderValues);
+                    var wwwAuthenticateHeader = wwwAuthenticateHeaderValues is null
+                        ? "<missing>"
+                        : string.Join(" | ", wwwAuthenticateHeaderValues);
 
-                Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; WWW-Authenticate: {wwwAuthenticateHeader}; Body: {responseBody}");
+                    Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; WWW-Authenticate: {wwwAuthenticateHeader}; Body: {responseBody}");
+                }
+                else
+                {
+                    Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}");
+                }
             }
         }
         catch (AccessTokenNotAvailableException ex)
