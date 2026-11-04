@@ -16,9 +16,28 @@ if (builder.Environment.IsProduction() &&
 var authority = builder.Configuration["AzureAd:Authority"];
 var audience = builder.Configuration["AzureAd:Audience"];
 var tenantId = builder.Configuration["AzureAd:TenantId"];
-if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(tenantId))
+
+var missingAzureAdSettings = new List<string>();
+if (string.IsNullOrWhiteSpace(authority))
 {
-    throw new InvalidOperationException("Configuration values 'AzureAd:Authority', 'AzureAd:Audience', and 'AzureAd:TenantId' are required.");
+    missingAzureAdSettings.Add("AzureAd:Authority");
+}
+
+if (string.IsNullOrWhiteSpace(audience))
+{
+    missingAzureAdSettings.Add("AzureAd:Audience");
+}
+
+if (string.IsNullOrWhiteSpace(tenantId))
+{
+    missingAzureAdSettings.Add("AzureAd:TenantId");
+}
+
+if (missingAzureAdSettings.Count > 0)
+{
+    var missingSettingsMessage = $"Missing required configuration setting(s): {string.Join(", ", missingAzureAdSettings)}. Environment: {builder.Environment.EnvironmentName}; WEBSITE_HOSTNAME: {websiteHostName ?? "<null>"}.";
+    Console.Error.WriteLine($"[StartupConfig] {missingSettingsMessage}");
+    throw new InvalidOperationException(missingSettingsMessage);
 }
 
 authority = authority.TrimEnd('/');
