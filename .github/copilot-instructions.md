@@ -14,6 +14,8 @@
   - **Local**: named "Development", a local development environment on a developer's machine
   - **Remotely hosted development**: named "Dev" (hosted in Azure)
   - **Remotely hosted Production**: named "Prod" (hosted in Azure)
+- Diagnostics toggling for both **Sayyit.Web** and **Sayyit.API** must use `Diagnostics:ExposeLogs` from configuration instead of environment checks.
+- Local appsettings values for `Diagnostics:ExposeLogs` may be overridden in Production by Azure App Service environment variables (`Diagnostics__ExposeLogs`).
 
 ## Repositories & Structure
 
@@ -124,6 +126,7 @@ Pattern: `sayyit-<env>-<resource>`
 - Prefer code matching **existing Azure naming and GitHub OIDC patterns** already used by Sayyit
 - Prioritize information from **github.com/JTNichols/sayyit** when relevant
 - For workforce tenant recommendations, use **sayyitadmin.onmicrosoft.com**
+- For debug/log visibility behavior in both the Blazor web app and API, use `Diagnostics:ExposeLogs` and do not gate debugging output on environment-name checks.
 
 ---
 
