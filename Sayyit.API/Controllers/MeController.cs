@@ -13,12 +13,10 @@ namespace Sayyit.API.Controllers;
 public sealed class MeController(
     BootstrapService bootstrapService,
     ILogger<MeController> logger,
-    IHostEnvironment hostEnvironment,
     IConfiguration configuration) : ControllerBase
 {
     private readonly BootstrapService _bootstrapService = bootstrapService;
     private readonly ILogger<MeController> _logger = logger;
-    private readonly IHostEnvironment _hostEnvironment = hostEnvironment;
     private readonly IConfiguration _configuration = configuration;
 
     [HttpPost("bootstrap")]
@@ -77,9 +75,7 @@ public sealed class MeController(
             Status = StatusCodes.Status503ServiceUnavailable
         };
 
-        var exposeErrorCode = _hostEnvironment.IsDevelopment() ||
-            _hostEnvironment.IsEnvironment("Dev") ||
-            _configuration.GetValue<bool>("Diagnostics:ExposeBootstrapErrorCode");
+        var exposeErrorCode = _configuration.GetValue<bool>("Diagnostics:ExposeLogs");
 
         if (exposeErrorCode)
         {

@@ -6,8 +6,7 @@ using Sayyit.API.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 var websiteHostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
-if (builder.Environment.IsProduction() &&
-    !string.IsNullOrWhiteSpace(websiteHostName) &&
+if (!string.IsNullOrWhiteSpace(websiteHostName) &&
     websiteHostName.Contains("sayyit-dev-apiapp.azurewebsites.net", StringComparison.OrdinalIgnoreCase))
 {
     builder.Configuration.AddJsonFile("appsettings.Dev.json", optional: true, reloadOnChange: false);
@@ -50,6 +49,7 @@ var tenantAuthority = $"https://{tenantId}.ciamlogin.com/{tenantId}";
 var metadataAddress = $"{tenantAuthority}/v2.0/.well-known/openid-configuration";
 var customDomainIssuer = $"{authority}/v2.0";
 var tenantIdIssuer = $"{tenantAuthority}/v2.0";
+var exposeLogs = builder.Configuration.GetValue<bool>("Diagnostics:ExposeLogs");
 var bareAudience = audience.StartsWith("api://", StringComparison.OrdinalIgnoreCase)
     ? audience["api://".Length..]
     : audience;
@@ -127,15 +127,15 @@ else
         sqlConnectionStringBuilder.InitialCatalog,
         sqlConnectionStringBuilder.Authentication);
 
-    if (app.Environment.IsDevelopment() && sqlConnectionStringBuilder.Authentication == SqlAuthenticationMethod.ActiveDirectoryDefault)
+    if (exposeLogs && sqlConnectionStringBuilder.Authentication == SqlAuthenticationMethod.ActiveDirectoryDefault)
     {
-        logger.LogInformation("***\nDevelopment environment is using Microsoft Entra local developer authentication (Active Directory Default).\n***");
+        logger.LogInformation("***\nDiagnostics enabled: API is using Microsoft Entra authentication mode '{Authentication}'.\n***", sqlConnectionStringBuilder.Authentication);
     }
 }
 
 logger.LogInformation("Token validation configured. ConfigAuthority: {ConfigAuthority}; ValidationAuthority: {ValidationAuthority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}; ValidIssuers: {ValidIssuers}", authority, tenantAuthority, metadataAddress, string.Join(", ", validAudiences), string.Join(", ", validIssuers));
 
-if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Dev"))
+if (exposeLogs)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
