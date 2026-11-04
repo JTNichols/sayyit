@@ -271,3 +271,91 @@ When asked to implement a feature:
 - “Create a Blazor component that shows a user’s visible left/right score and moderation history.”
 - “Refactor this moderation controller so policy checks live in a service and add tests.”
 - “Update the Bicep and GitHub Actions workflow to support another environment using the current Azure OIDC pattern.”
+
+## API Feature-Oriented Organization
+
+### Required Organization
+- Organize `Sayyit.API` by business feature rather than by technical layer.
+- Place feature-specific code under `Sayyit.API/Features/<FeatureName>/`.
+- Example features include Users, Posts, Feeds, Scoring, Moderation, Blocking, and Notifications. Create only features needed by the requested work.
+- Keep each feature's controllers, application services, queries, validators, business rules, persistence entities, EF Core configurations, and AutoMapper profiles together.
+- Do not create or expand API-wide Controllers, Services, Repositories, Entities, Mapping, or DAL folders for feature-specific code.
+- This feature-oriented convention takes precedence over legacy layer-based folder organization for new API code.
+
+### Feature Structure
+Use the following structure as a guide, not as a requirement to create empty folders:
+
+```text
+Sayyit.API/
+  Features/
+    Posts/
+      PostsController.cs
+      PostService.cs
+      Queries/
+        GetPostQuery.cs
+      Rules/
+        PostEditingRules.cs
+      Mapping/
+        PostMappingProfile.cs
+      Persistence/
+        Post.cs
+        PostConfiguration.cs
+
+    Moderation/
+      ModerationController.cs
+      ModerationService.cs
+      Rules/
+        VoterEligibilityRules.cs
+        CrossSideApprovalRules.cs
+      Persistence/
+        ModerationCase.cs
+        ModerationCaseConfiguration.cs
+
+  Infrastructure/
+    Persistence/
+      SayyitDbContext.cs
+    Authentication/
+    Authorization/
+    Errors/
+
+  Common/
+    Security/
+    Pagination/
+
+  Program.cs
+```
+
+### Large Features
+- Split large features into operation-oriented subfolders instead of growing a single large service.
+- For example, use `Features/Posts/CreatePost/`, `Features/Posts/EditPost/`, and `Features/Posts/GetPost/`.
+- Keep operation-specific services, validators, and mappings inside the operation folder.
+- Keep entities and configurations shared by multiple operations in the feature's `Persistence` folder.
+- Query and operation class names do not imply a requirement for MediatR, CQRS infrastructure, or another framework.
+- Use namespaces that match the folder structure, such as `Sayyit.API.Features.Posts.CreatePost`.
+
+### Responsibilities and Boundaries
+- Keep controllers thin: handle HTTP concerns and delegate application workflows to feature services.
+- Put scoring, moderation, eligibility, and authorization decisions in explicit server-side services or rule classes, not in controllers, mapping profiles, or EF configurations.
+- Keep rules independent of HTTP and persistence concerns where practical.
+- Put genuinely shared technical infrastructure in `Infrastructure`.
+- Put only small, genuinely shared application primitives in `Common`; do not use it as a miscellaneous folder.
+- Give each entity and business rule a clear owning feature. Do not duplicate them across features.
+- Coordinate cross-feature business workflows through explicit service boundaries; never call another feature's controller.
+- Do not add interfaces, repositories, separate class libraries, or generic abstractions solely to satisfy a folder template.
+
+### EF Core and Database Ownership
+- Use a shared `SayyitDbContext` under `Infrastructure/Persistence` by default.
+- Keep feature-owned entities and `IEntityTypeConfiguration<T>` implementations under that feature's `Persistence` folder.
+- Feature services and queries may use the context directly. Add focused repositories only when they provide a concrete benefit.
+- Do not introduce one DbContext per feature without an explicit architectural decision.
+- Keep SQL schema definitions and schema deployment in the existing `Sayyit.Db` SQL project and DACPAC workflow.
+- Do not introduce EF migrations, `Database.Migrate()`, or `EnsureCreated()` as competing schema-management mechanisms.
+- Preserve existing connection-string configuration and authentication patterns.
+
+### Contracts and AutoMapper
+- Keep shared API/frontend request and response DTOs in `Sayyit.Contracts`, following the existing DTO guidance.
+- Do not duplicate shared DTOs inside API feature folders or expose EF entities as API contracts.
+- If AutoMapper is used, keep each profile in its owning feature or operation folder.
+- Use AutoMapper for data-shape mapping only, never for scoring, authorization, moderation decisions, or other business rules.
+- Prefer explicit assignments for security-sensitive updates. Never broadly reverse-map client input onto trusted identity, ownership, scores, moderation state, or audit fields.
+- Do not introduce AutoMapper or another mapping package solely because a Mapping folder appears in this example.

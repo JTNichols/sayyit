@@ -10,13 +10,13 @@ namespace Sayyit.API.Controllers;
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public sealed class MeController(
+public sealed class UserController(
     BootstrapService bootstrapService,
-    ILogger<MeController> logger,
+    ILogger<UserController> logger,
     IConfiguration configuration) : ControllerBase
 {
     private readonly BootstrapService _bootstrapService = bootstrapService;
-    private readonly ILogger<MeController> _logger = logger;
+    private readonly ILogger<UserController> _logger = logger;
     private readonly IConfiguration _configuration = configuration;
 
     [HttpPost("bootstrap")]
