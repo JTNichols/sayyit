@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Sayyit.API.Services;
 using Sayyit.Contracts.User;
 
@@ -51,7 +52,7 @@ public sealed class UserController(
             await _bootstrapService.BootstrapAsync(trustedRequest, cancellationToken);
             return NoContent();
         }
-        catch (SqlException ex) when (ex.Number is 2627 or 2601)
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number is 2627 or 2601)
         {
             return Conflict("A unique constraint was violated while syncing user data.");
         }
@@ -59,6 +60,11 @@ public sealed class UserController(
         {
             _logger.LogError(ex, "User bootstrap failed because the API configuration is invalid.");
             return CreateServiceUnavailableProblem("config_missing_connection_string");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx)
+        {
+            _logger.LogError(ex, "User bootstrap failed due to a SQL error with Number {SqlErrorNumber}.", sqlEx.Number);
+            return CreateServiceUnavailableProblem($"sql_{sqlEx.Number}");
         }
         catch (SqlException ex)
         {

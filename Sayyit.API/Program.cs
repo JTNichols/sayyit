@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Data.SqlClient;
 using Sayyit.API.Services;
@@ -64,6 +65,16 @@ var validIssuers = new[] { customDomainIssuer, tenantIdIssuer }
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<SayyitDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("SayyitDb");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("Connection string 'ConnectionStrings:SayyitDb' is not configured.");
+    }
+
+    options.UseSqlServer(connectionString);
+});
 builder.Services.AddScoped<BootstrapService>();
 
 builder.Services
