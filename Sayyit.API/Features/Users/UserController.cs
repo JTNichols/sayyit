@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Sayyit.API.Services;
 using Sayyit.Contracts.User;
 
@@ -10,11 +11,14 @@ namespace Sayyit.API.Controllers;
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public sealed class MeController(BootstrapService bootstrapService, ILogger<MeController> logger, IHostEnvironment hostEnvironment) : ControllerBase
+public sealed class UserController(
+    BootstrapService bootstrapService,
+    ILogger<UserController> logger,
+    IConfiguration configuration) : ControllerBase
 {
     private readonly BootstrapService _bootstrapService = bootstrapService;
-    private readonly ILogger<MeController> _logger = logger;
-    private readonly IHostEnvironment _hostEnvironment = hostEnvironment;
+    private readonly ILogger<UserController> _logger = logger;
+    private readonly IConfiguration _configuration = configuration;
 
     [HttpPost("bootstrap")]
     public async Task<IActionResult> BootstrapAsync([FromBody] UserBootstrap request, CancellationToken cancellationToken)
@@ -48,7 +52,7 @@ public sealed class MeController(BootstrapService bootstrapService, ILogger<MeCo
             await _bootstrapService.BootstrapAsync(trustedRequest, cancellationToken);
             return NoContent();
         }
-        catch (SqlException ex) when (ex.Number is 2627 or 2601)
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number is 2627 or 2601)
         {
             return Conflict("A unique constraint was violated while syncing user data.");
         }
@@ -56,6 +60,11 @@ public sealed class MeController(BootstrapService bootstrapService, ILogger<MeCo
         {
             _logger.LogError(ex, "User bootstrap failed because the API configuration is invalid.");
             return CreateServiceUnavailableProblem("config_missing_connection_string");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx)
+        {
+            _logger.LogError(ex, "User bootstrap failed due to a SQL error with Number {SqlErrorNumber}.", sqlEx.Number);
+            return CreateServiceUnavailableProblem($"sql_{sqlEx.Number}");
         }
         catch (SqlException ex)
         {
@@ -72,7 +81,9 @@ public sealed class MeController(BootstrapService bootstrapService, ILogger<MeCo
             Status = StatusCodes.Status503ServiceUnavailable
         };
 
-        if (_hostEnvironment.IsDevelopment() || _hostEnvironment.IsEnvironment("Dev"))
+        var exposeErrorCode = _configuration.GetValue<bool>("Diagnostics:ExposeLogs");
+
+        if (exposeErrorCode)
         {
             problemDetails.Extensions["code"] = errorCode;
         }
