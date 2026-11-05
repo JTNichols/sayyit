@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Sayyit.API.Features.Users.Models;
+using Sayyit.API.Features.Users.Persistence;
 using Sayyit.Contracts.User;
 
 namespace Sayyit.API.Services;
@@ -36,7 +36,7 @@ public sealed class BootstrapService
 
         if (user is null)
         {
-            user = new UserEntity
+            user = new SayyitUser
             {
                 EntraObjectId = request.EntraObjectId,
                 TenantId = request.TenantId,

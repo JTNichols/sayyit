@@ -1,15 +1,15 @@
 using Microsoft.EntityFrameworkCore;
-using Sayyit.API.Features.Users.Models;
+using Sayyit.API.Features.Users.Persistence;
 
 namespace Sayyit.API.Services;
 
 public sealed class SayyitDbContext(DbContextOptions<SayyitDbContext> options) : DbContext(options)
 {
-    public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<SayyitUser> Users => Set<SayyitUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<UserEntity>(entity =>
+        modelBuilder.Entity<SayyitUser>(entity =>
         {
             entity.ToTable("Users", "auth");
             entity.HasKey(user => user.UserId);

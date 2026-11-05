@@ -1,6 +1,6 @@
-namespace Sayyit.API.Features.Users.Models;
+namespace Sayyit.API.Features.Users.Persistence;
 
-public sealed class UserEntity
+public sealed class SayyitUser
 {
     public Guid UserId { get; set; }
 
