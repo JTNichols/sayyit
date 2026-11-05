@@ -93,32 +93,23 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-var delimitedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
-    .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+// Local API CORS only. Azure-hosted APIs use App Service CORS managed by Bicep.
+string[] allowedOrigins = builder.Environment.IsDevelopment()
+    ? ["http://localhost:5500"]
+    : [];
 
-var allowedOrigins = configuredOrigins
-    .Concat(delimitedOrigins)
-    .Concat([
-        "https://localhost:5501",
-        "http://localhost:5500",
-        "https://sayyit-dev-webapp.azurewebsites.net",
-        "https://sayyit-prod-webapp.azurewebsites.net"
-    ])
-    .Where(origin => !string.IsNullOrWhiteSpace(origin))
-    .Select(origin => origin.Trim().TrimEnd('/'))
-    .Distinct(StringComparer.OrdinalIgnoreCase)
-    .ToArray();
-
-builder.Services.AddCors(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.AddPolicy("WebClientPolicy", policy =>
+    builder.Services.AddCors(options =>
     {
-        policy.WithOrigins(allowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        options.AddPolicy("WebClientPolicy", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
     });
-});
+}
 
 var app = builder.Build();
 
@@ -154,14 +145,24 @@ if (exposeLogs)
 
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseCors("WebClientPolicy");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("WebClientPolicy");
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-Console.WriteLine($"[Startup] Environment: {app.Environment.EnvironmentName}\n; " +
-    $"AllowedOrigins: {string.Join(", ", allowedOrigins)} \n" +
-    $"WebsiteHostName: {websiteHostName} \n");
+var corsDescription = app.Environment.IsDevelopment()
+    ? $"ASP.NET Core; AllowedOrigins: {string.Join(", ", allowedOrigins)}"
+    : "Azure App Service; allowed origins managed by Bicep";
+
+Console.WriteLine(
+    $"[Startup] Environment: {app.Environment.EnvironmentName}\n" +
+    $"CORS: {corsDescription}\n" +
+    $"WebsiteHostName: {websiteHostName ?? "<null>"}\n");
 
 app.Run();
