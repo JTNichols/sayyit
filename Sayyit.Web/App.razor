@@ -1,7 +1,7 @@
 ﻿<CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
         <Found Context="routeData">
-            @if (routeData.PageType == typeof(Pages.Authentication))
+            @if (routeData.PageType == typeof(Sayyit.Web.Features.Authentication.Authentication))
             {
                 <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
             }

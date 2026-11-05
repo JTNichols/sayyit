@@ -272,25 +272,72 @@ When asked to implement a feature:
 - “Refactor this moderation controller so policy checks live in a service and add tests.”
 - “Update the Bicep and GitHub Actions workflow to support another environment using the current Azure OIDC pattern.”
 
-## API Feature-Oriented Organization
+## Feature-Oriented Organization: Sayyit.API and Sayyit.Web
 
 ### Required Organization
-- Organize `Sayyit.API` by business feature rather than by technical layer.
-- Place feature-specific code under `Sayyit.API/Features/<FeatureName>/`.
-- Example features include Users, Posts, Feeds, Scoring, Moderation, Blocking, and Notifications. Create only features needed by the requested work.
-- Keep each feature's controllers, application services, queries, validators, business rules, persistence entities, EF Core configurations, and AutoMapper profiles together.
-- Do not create or expand API-wide Controllers, Services, Repositories, Entities, Mapping, or DAL folders for feature-specific code.
-- This feature-oriented convention takes precedence over legacy layer-based folder organization for new API code.
+- Organize both `Sayyit.API` and `Sayyit.Web` by feature rather than by application-wide technical layers.
+- Place feature-specific code under `<ProjectName>/Features/<FeatureName>/`.
+- Choose feature boundaries appropriate to each project:
+  - API features represent backend business capabilities and resource ownership.
+  - Web features represent user-facing capabilities and workflows.
+- Feature names and internal folder structures do not need to match between projects.
+- For example, `Sayyit.Web/Features/Authentication` and `Sayyit.API/Features/Users` are correct, intentional boundaries. Do not rename either merely to make the projects symmetrical.
+- A Web feature may use multiple API features, and an API feature may support multiple Web features.
+- Example features include Authentication, Home, Users, Posts, Feeds, Scoring, Moderation, Blocking, and Notifications. Create only features needed by the requested work.
+- Keep feature-specific code within its owning feature, including technical subfolders when useful.
+- Do not create or expand application-wide technical folders for feature-specific code.
+- This feature-oriented convention takes precedence over legacy layer-based organization for new code in both projects.
+- Follow the current repository structure when making targeted changes. Do not perform unrelated folder moves or architectural refactors.
 
-### Feature Structure
-Use the following structure as a guide, not as a requirement to create empty folders:
+### Current Organization and Intended Direction
+
+#### Sayyit.API
+- The existing Users feature contains:
+  - `Controllers/UserController.cs`
+  - `Services/BootstrapService.cs`
+  - `Persistence/SayyitUser.cs`
+  - `Persistence/SayyitDbContext.cs`
+- Preserve feature ownership for controllers, services, and entities.
+- The shared `SayyitDbContext` is currently located inside the Users feature. This is an existing placement, not a requirement that all database access belong to Users.
+- Use `Infrastructure/Persistence` as the default destination for the shared context when explicitly refactoring persistence organization or when cross-feature persistence work requires that change.
+- Do not move the context solely as incidental cleanup during an unrelated task.
+
+#### Sayyit.Web
+- The existing Authentication feature contains:
+  - `Authentication.razor`
+  - `LoginDisplay.razor`
+  - `RedirectToLogin.razor`
+  - `Services/ApiAuthorizationMessageHandler.cs`
+- The existing Home feature contains `Home.razor`.
+- Shared application layout components belong in `Shared/Layout`, including `MainLayout.razor` and `NavMenu.razor`.
+- `Pages/NotFound.razor` currently remains outside a feature as application-wide routing UI. Do not move it solely to enforce symmetry.
+- Do not add feature-specific pages to the root `Pages` folder or feature-specific services to the root `Services` folder.
+- The existing placement of `ApiAuthorizationMessageHandler` under Authentication is intentional and acceptable. Do not move it to Infrastructure merely because it is used by requests from multiple features.
+- Do not create empty folders or retain unused folders merely to satisfy a template.
+
+### API Feature Structure
+- Keep each feature's controllers, application services, queries, validators, business rules, persistence entities, EF Core configurations, and AutoMapper profiles together.
+- Feature-local technical folders such as `Controllers`, `Services`, and `Persistence` are allowed and match the existing Users feature.
+- Do not create or expand API-wide `Controllers`, `Services`, `Repositories`, `Entities`, `Mapping`, or `DAL` folders for feature-specific code.
+
+Use the following structure as a guide, not as a requirement to create empty folders. The shared context location shown below is the default target when its relocation is part of the requested work:
 
 ```text
 Sayyit.API/
   Features/
+    Users/
+      Controllers/
+        UserController.cs
+      Services/
+        BootstrapService.cs
+      Persistence/
+        SayyitUser.cs
+
     Posts/
-      PostsController.cs
-      PostService.cs
+      Controllers/
+        PostsController.cs
+      Services/
+        PostService.cs
       Queries/
         GetPostQuery.cs
       Rules/
@@ -302,8 +349,10 @@ Sayyit.API/
         PostConfiguration.cs
 
     Moderation/
-      ModerationController.cs
-      ModerationService.cs
+      Controllers/
+        ModerationController.cs
+      Services/
+        ModerationService.cs
       Rules/
         VoterEligibilityRules.cs
         CrossSideApprovalRules.cs
@@ -325,37 +374,151 @@ Sayyit.API/
   Program.cs
 ```
 
-### Large Features
-- Split large features into operation-oriented subfolders instead of growing a single large service.
-- For example, use `Features/Posts/CreatePost/`, `Features/Posts/EditPost/`, and `Features/Posts/GetPost/`.
-- Keep operation-specific services, validators, and mappings inside the operation folder.
-- Keep entities and configurations shared by multiple operations in the feature's `Persistence` folder.
-- Query and operation class names do not imply a requirement for MediatR, CQRS infrastructure, or another framework.
-- Use namespaces that match the folder structure, such as `Sayyit.API.Features.Posts.CreatePost`.
+### Web Feature Structure
+- Keep each feature's routable pages, feature-owned components, API clients, services, UI state, and presentation models together.
+- For small features, keep Razor components directly in the feature folder.
+- Add feature-local folders such as `Components`, `Services`, `State`, or `Models` only when they improve navigation.
+- A component belongs to the feature that owns its behavior, not necessarily the feature or layout that renders it.
+- For example, `LoginDisplay.razor` belongs to Authentication even when rendered by `Shared/Layout/MainLayout.razor`.
+- Keep `.razor.cs` code-behind files and `.razor.css` isolated styles beside their corresponding `.razor` files.
+- Keep application-wide layout components in `Shared/Layout`.
+- Put genuinely reusable, feature-neutral UI components in `Shared/Components` when needed.
+- Do not move a feature-owned component into Shared merely because multiple components render it.
+- Keep `App.razor`, `Program.cs`, and the root `_Imports.razor` at the project root unless the requested work explicitly requires otherwise.
+- Keep public static assets and client configuration in the existing `wwwroot` structure.
+- Do not introduce server-side Blazor, server endpoints, EF entities, or database access into the standalone WebAssembly project.
 
-### Responsibilities and Boundaries
+Use the following structure as a guide. Existing files and illustrative future files are shown together; do not create unused files or folders:
+
+```text
+Sayyit.Web/
+  Features/
+    Authentication/
+      Authentication.razor
+      LoginDisplay.razor
+      RedirectToLogin.razor
+      Services/
+        ApiAuthorizationMessageHandler.cs
+
+    Home/
+      Home.razor
+
+    Posts/
+      PostDetails.razor
+      PostDetails.razor.cs
+      PostDetails.razor.css
+      Components/
+        PostCard.razor
+        PostEditor.razor
+      Services/
+        PostsApiClient.cs
+
+    Moderation/
+      ModerationQueue.razor
+      Components/
+        ModerationCaseCard.razor
+      Services/
+        ModerationApiClient.cs
+
+  Shared/
+    Layout/
+      MainLayout.razor
+      NavMenu.razor
+    Components/
+
+  Pages/
+    NotFound.razor
+
+  wwwroot/
+    index.html
+    appsettings.json
+
+  _Imports.razor
+  App.razor
+  Program.cs
+```
+
+### Large Features
+- Split large features into operation-oriented or workflow-oriented subfolders instead of growing a single large service or component collection.
+- API examples include:
+  - `Features/Posts/CreatePost/`
+  - `Features/Posts/EditPost/`
+  - `Features/Posts/GetPost/`
+- Web examples include:
+  - `Features/Posts/Create/`
+  - `Features/Posts/Details/`
+  - `Features/Posts/Feed/`
+- Keep operation-specific services, validators, mappings, components, and presentation models inside the corresponding operation or workflow folder.
+- Keep entities and configurations shared by multiple API operations in the feature's `Persistence` folder.
+- Keep components, API clients, or state shared by multiple Web workflows at the owning feature's common level.
+- Do not require the Web and API to use identical operation names or folder depths.
+- Query and operation class names do not imply a requirement for MediatR, CQRS infrastructure, or another framework.
+- Use namespaces that match the folder structure, such as:
+  - `Sayyit.API.Features.Posts.CreatePost`
+  - `Sayyit.Web.Features.Posts.Details`
+
+### API Responsibilities and Boundaries
 - Keep controllers thin: handle HTTP concerns and delegate application workflows to feature services.
 - Put scoring, moderation, eligibility, and authorization decisions in explicit server-side services or rule classes, not in controllers, mapping profiles, or EF configurations.
 - Keep rules independent of HTTP and persistence concerns where practical.
-- Put genuinely shared technical infrastructure in `Infrastructure`.
-- Put only small, genuinely shared application primitives in `Common`; do not use it as a miscellaneous folder.
 - Give each entity and business rule a clear owning feature. Do not duplicate them across features.
 - Coordinate cross-feature business workflows through explicit service boundaries; never call another feature's controller.
+- Put genuinely shared technical infrastructure in `Infrastructure`.
+- Put only small, genuinely shared application primitives in `Common`; do not use it as a miscellaneous folder.
 - Do not add interfaces, repositories, separate class libraries, or generic abstractions solely to satisfy a folder template.
 
+### Web Responsibilities and Boundaries
+- Keep presentation and interaction logic in Razor components; move reusable workflows and API access into focused feature services.
+- Use typed HTTP clients or well-encapsulated API client services rather than scattering raw HTTP calls across components.
+- Preserve existing named-client registrations and authentication message-handler behavior unless the requested work requires changing them.
+- Keep feature-specific UI state within its owning feature. Do not introduce application-wide state services for state used by only one feature.
+- Components may compose components owned by other features when appropriate. Avoid coupling them to another feature's internal workflow or mutable state.
+- Use explicit service boundaries for cross-feature workflows rather than invoking another feature's page or component as an application service.
+- Client-side validation, visibility checks, and disabled controls are user-experience behavior, not security boundaries.
+- Keep authoritative scoring, moderation, eligibility, ownership, and authorization enforcement in the API.
+- Do not duplicate authoritative business-rule implementations in the Web project.
+- The Web project must access backend data through the API, never through direct database connections.
+- Do not introduce new state-management, mediation, or mapping packages solely to support the folder structure.
+
+### Shared Code and Infrastructure
+- Keep code inside its owning feature unless it is genuinely feature-neutral.
+- Shared use alone does not automatically remove feature ownership. Authentication services, for example, may remain owned by Authentication while supporting the entire Web application.
+- In the API, use `Infrastructure` for shared technical concerns and `Common` for small shared application primitives.
+- In the Web project, use `Shared` primarily for feature-neutral UI and layout.
+- Introduce Web `Infrastructure` only when a concrete, feature-neutral technical concern needs it; do not create it preemptively.
+- Avoid catch-all Shared, Common, Helpers, Utilities, or Services folders that obscure ownership.
+- Do not move server-side implementations into a shared client/server library merely because both projects use related terminology.
+
 ### EF Core and Database Ownership
-- Use a shared `SayyitDbContext` under `Infrastructure/Persistence` by default.
+- Use a shared `SayyitDbContext` by default, with `Infrastructure/Persistence` as its intended shared location.
+- Respect the current context placement until relocating it is part of the requested work or necessary for cross-feature persistence changes.
 - Keep feature-owned entities and `IEntityTypeConfiguration<T>` implementations under that feature's `Persistence` folder.
 - Feature services and queries may use the context directly. Add focused repositories only when they provide a concrete benefit.
 - Do not introduce one DbContext per feature without an explicit architectural decision.
 - Keep SQL schema definitions and schema deployment in the existing `Sayyit.Db` SQL project and DACPAC workflow.
 - Do not introduce EF migrations, `Database.Migrate()`, or `EnsureCreated()` as competing schema-management mechanisms.
 - Preserve existing connection-string configuration and authentication patterns.
+- Do not add EF Core persistence or database credentials to `Sayyit.Web`.
 
-### Contracts and AutoMapper
+### Contracts, Presentation Models, and AutoMapper
 - Keep shared API/frontend request and response DTOs in `Sayyit.Contracts`, following the existing DTO guidance.
-- Do not duplicate shared DTOs inside API feature folders or expose EF entities as API contracts.
+- Do not duplicate shared DTOs inside API or Web feature folders.
+- Do not expose EF entities as API contracts.
+- Reuse shared DTOs in Web components where appropriate.
+- Add feature-local presentation models only when the UI needs distinct presentation state or behavior; do not create one-to-one DTO copies without a concrete benefit.
+- Do not add UI-only state to shared contracts merely to avoid a presentation model.
 - If AutoMapper is used, keep each profile in its owning feature or operation folder.
 - Use AutoMapper for data-shape mapping only, never for scoring, authorization, moderation decisions, or other business rules.
 - Prefer explicit assignments for security-sensitive updates. Never broadly reverse-map client input onto trusted identity, ownership, scores, moderation state, or audit fields.
-- Do not introduce AutoMapper or another mapping package solely because a Mapping folder appears in this example.
+- Do not introduce AutoMapper or another mapping package solely because a Mapping folder appears in an example.
+
+### Refactoring and Validation
+- Keep organizational changes focused and preserve behavior unless the requested work explicitly changes behavior.
+- When moving C# or Razor files, update namespaces, using directives, dependency-injection registrations, component references, and tests as needed.
+- Keep Razor code-behind namespaces aligned with their components.
+- Update root or feature-local `_Imports.razor` files as appropriate. Do not assume Razor imports apply to C# files.
+- Preserve existing `@page` route templates, authentication callback paths, redirect URIs, API routes, and HTTP-client names unless explicitly changing those contracts.
+- Do not change environment selection, appsettings loading, Azure configuration, or deployment workflows as incidental cleanup.
+- Build affected projects after organizational changes.
+- For Web routing or authentication moves, verify affected routes, unknown-route handling, sign-in, sign-out, authentication callbacks, and authenticated API access.
+- Add or update tests when behavior changes, following the existing testing guidance.

@@ -93,9 +93,12 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// Local API CORS only. Azure-hosted APIs use App Service CORS managed by Bicep.
+// Local API CORS
+var configuredDevOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 string[] allowedOrigins = builder.Environment.IsDevelopment()
-    ? ["http://localhost:5500"]
+    ? (configuredDevOrigins is { Length: > 0 }
+        ? configuredDevOrigins
+        : ["https://localhost:5501", "http://localhost:5500"])
     : [];
 
 if (builder.Environment.IsDevelopment())
