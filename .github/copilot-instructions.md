@@ -105,7 +105,7 @@ Pattern: `sayyit-<env>-<resource>`
 - **Web App Managed Identity**: Permission to read secrets (system-assigned identity)
 - **Key Secrets**:
   - `sqlServerAdministratorPassword` – SQL admin password
-	- 
+
 **Critical**: Never hardcode secrets, connection strings, publish profiles, client IDs, or tenant IDs in source files; all secrets must come from Key Vault or GitHub repository secrets.
 
 ## Important Files: 
@@ -172,11 +172,11 @@ When generating code, documentation, tests, or refactors, assume the following u
 - Design schema and queries for auditability, moderation transparency, and future analytics
 - Treat left/right scoring, moderation votes, and user actions as domain records that may need traceability
 - Avoid destructive data operations unless explicitly requested
--
-### Data Transfer objects
+
+### Data Transfer Objects
 - Use project Sayyit.Contracts for DTOs between API and Blazor frontend
 - Whenever possible use the Sayyit.Contracts models for API endpoints and Blazor view objects instead of creating new classes
-- prefer adding new properties to existing DTOs rather than creating new DTOs unless the new property is a back-end secret or otherwise sensitive
+- Prefer adding new properties to existing DTOs rather than creating new DTOs unless the new property is a back-end secret or otherwise sensitive
 
 ## Domain Rules to Protect
 
@@ -448,7 +448,7 @@ Sayyit.Web/
   - `Features/Posts/Create/`
   - `Features/Posts/Details/`
   - `Features/Posts/Feed/`
-- Keep operation-specific services, validators, mappings, components, and presentation models inside the corresponding operation or workflow folder.
+- Keep operation-specific services, validators, mappings, and presentation models inside the corresponding operation or workflow folder.
 - Keep entities and configurations shared by multiple API operations in the feature's `Persistence` folder.
 - Keep components, API clients, or state shared by multiple Web workflows at the owning feature's common level.
 - Do not require the Web and API to use identical operation names or folder depths.
@@ -521,4 +521,4 @@ Sayyit.Web/
 - Do not change environment selection, appsettings loading, Azure configuration, or deployment workflows as incidental cleanup.
 - Build affected projects after organizational changes.
 - For Web routing or authentication moves, verify affected routes, unknown-route handling, sign-in, sign-out, authentication callbacks, and authenticated API access.
-- Add or update tests when behavior changes, following the existing testing guidance.
+- **Ignore test requirements**; do not add tests or test-host scaffolding to the codebase.

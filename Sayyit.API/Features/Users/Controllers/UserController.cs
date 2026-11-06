@@ -1,8 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
 using Sayyit.API.Services;
 using Sayyit.Contracts.User;
 
@@ -13,12 +11,10 @@ namespace Sayyit.API.Controllers;
 [Authorize]
 public sealed class UserController(
     BootstrapService bootstrapService,
-    ILogger<UserController> logger,
-    IConfiguration configuration) : ControllerBase
+    ILogger<UserController> logger) : ControllerBase
 {
     private readonly BootstrapService _bootstrapService = bootstrapService;
     private readonly ILogger<UserController> _logger = logger;
-    private readonly IConfiguration _configuration = configuration;
 
     [HttpPost("bootstrap")]
     public async Task<IActionResult> BootstrapAsync([FromBody] UserBootstrap request, CancellationToken cancellationToken)
@@ -47,48 +43,8 @@ public sealed class UserController(
             return ValidationProblem(ModelState);
         }
 
-        try
-        {
-            await _bootstrapService.BootstrapAsync(trustedRequest, cancellationToken);
-            return NoContent();
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx && sqlEx.Number is 2627 or 2601)
-        {
-            return Conflict("A unique constraint was violated while syncing user data.");
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogError(ex, "User bootstrap failed because the API configuration is invalid.");
-            return CreateServiceUnavailableProblem("config_missing_connection_string");
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx)
-        {
-            _logger.LogError(ex, "User bootstrap failed due to a SQL error with Number {SqlErrorNumber}.", sqlEx.Number);
-            return CreateServiceUnavailableProblem($"sql_{sqlEx.Number}");
-        }
-        catch (SqlException ex)
-        {
-            _logger.LogError(ex, "User bootstrap failed due to a SQL error with Number {SqlErrorNumber}.", ex.Number);
-            return CreateServiceUnavailableProblem($"sql_{ex.Number}");
-        }
-    }
-
-    private ObjectResult CreateServiceUnavailableProblem(string errorCode)
-    {
-        var problemDetails = new ProblemDetails
-        {
-            Title = "User sync is temporarily unavailable.",
-            Status = StatusCodes.Status503ServiceUnavailable
-        };
-
-        var exposeErrorCode = _configuration.GetValue<bool>("Diagnostics:ExposeLogs");
-
-        if (exposeErrorCode)
-        {
-            problemDetails.Extensions["code"] = errorCode;
-        }
-
-        return StatusCode(StatusCodes.Status503ServiceUnavailable, problemDetails);
+        await _bootstrapService.BootstrapAsync(trustedRequest, cancellationToken);
+        return NoContent();
     }
 
     private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)
