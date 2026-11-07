@@ -1,7 +1,11 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Data.SqlClient;
+using Sayyit.API.Infrastructure.Errors;
 using Sayyit.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,7 +54,6 @@ var tenantAuthority = $"https://{tenantId}.ciamlogin.com/{tenantId}";
 var metadataAddress = $"{tenantAuthority}/v2.0/.well-known/openid-configuration";
 var customDomainIssuer = $"{authority}/v2.0";
 var tenantIdIssuer = $"{tenantAuthority}/v2.0";
-var exposeLogs = builder.Configuration.GetValue<bool>("Diagnostics:ExposeLogs");
 var bareAudience = audience.StartsWith("api://", StringComparison.OrdinalIgnoreCase)
     ? audience["api://".Length..]
     : audience;
@@ -63,6 +66,15 @@ var validIssuers = new[] { customDomainIssuer, tenantIdIssuer }
     .ToArray();
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        var traceId = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+        context.ProblemDetails.Extensions["traceId"] = traceId;
+    };
+});
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<SayyitDbContext>(options =>
@@ -93,9 +105,12 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// Local API CORS only. Azure-hosted APIs use App Service CORS managed by Bicep.
+// Local API CORS
+var configuredDevOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 string[] allowedOrigins = builder.Environment.IsDevelopment()
-    ? ["http://localhost:5500"]
+    ? (configuredDevOrigins is { Length: > 0 }
+        ? configuredDevOrigins
+        : ["https://localhost:5501", "http://localhost:5500"])
     : [];
 
 if (builder.Environment.IsDevelopment())
@@ -127,21 +142,48 @@ else
         "SayyitDb configured for server '{Server}', database '{Database}', authentication '{Authentication}'.",
         sqlConnectionStringBuilder.DataSource,
         sqlConnectionStringBuilder.InitialCatalog,
-        sqlConnectionStringBuilder.Authentication);
-
-    if (exposeLogs && sqlConnectionStringBuilder.Authentication == SqlAuthenticationMethod.ActiveDirectoryDefault)
-    {
-        logger.LogInformation("***\nDiagnostics enabled: API is using Microsoft Entra authentication mode '{Authentication}'.\n***", sqlConnectionStringBuilder.Authentication);
-    }
+        sqlConnectionStringBuilder.Authentication); 
 }
 
 logger.LogInformation("Token validation configured. ConfigAuthority: {ConfigAuthority}; ValidationAuthority: {ValidationAuthority}; MetadataAddress: {MetadataAddress}; ValidAudiences: {ValidAudiences}; ValidIssuers: {ValidIssuers}", authority, tenantAuthority, metadataAddress, string.Join(", ", validAudiences), string.Join(", ", validIssuers));
 
-if (exposeLogs)
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandler();
+// Give JSON error responses for empty errors w/o overriding real responses/auth headers
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var httpContext = statusCodeContext.HttpContext;
+    var response = httpContext.Response;
+
+    if (response.HasStarted) { return; } 
+    if (response.StatusCode is StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden) { return; } 
+    if (response.ContentLength is > 0) { return; } 
+    if (!string.IsNullOrWhiteSpace(response.ContentType)) { return; } 
+    if (response.StatusCode is < 400 or > 599) { return; }
+
+    var title = ReasonPhrases.GetReasonPhrase(response.StatusCode);
+    if (string.IsNullOrWhiteSpace(title)) { title = "Error"; }
+
+    var problemDetails = new ProblemDetails
+    {
+        Type = "about:blank",
+        Title = title,
+        Status = response.StatusCode
+    };
+
+    var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+    await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+    {
+        HttpContext = httpContext,
+        ProblemDetails = problemDetails,
+        Exception = null
+    });
+});
 
 app.UseHttpsRedirection();
 app.UseRouting();
