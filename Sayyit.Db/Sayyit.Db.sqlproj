@@ -67,5 +67,6 @@
     <Build Include="auth\Tables\UserBlock.sql" />
     <Build Include="auth\Tables\UserBan.sql" />
     <Build Include="Security\auth.sql" />
+    <Build Include="Security\Content.sql" />
   </ItemGroup>
 </Project>
