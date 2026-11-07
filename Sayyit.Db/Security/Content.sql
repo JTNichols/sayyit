@@ -1,1 +1,1 @@
-﻿CREATE SCHEMA [Content]
+﻿CREATE SCHEMA [content]
