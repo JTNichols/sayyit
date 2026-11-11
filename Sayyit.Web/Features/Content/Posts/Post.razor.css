@@ -1,0 +1,50 @@
+/* CSS for Post component */
+.post {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 1rem 1.125rem;
+    border: 1px solid #d8dee6;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    color: #182230;
+}
+
+.post__header {
+    margin-bottom: 0.75rem;
+}
+
+.post__user-id {
+    display: block;
+    color: #344054;
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.post__body {
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.post__footer {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eaecf0;
+    color: #667085;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow-x: auto;
+}
+
+    .post__footer > span {
+        flex: 0 0 auto;
+    }

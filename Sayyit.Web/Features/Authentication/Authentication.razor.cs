@@ -1,0 +1,92 @@
+using System.Security.Claims;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Sayyit.Contracts.User;
+
+namespace Sayyit.Web.Features.Authentication;
+
+public partial class Authentication
+{
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+
+    [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+
+    [Inject] private IConfiguration Configuration { get; set; } = default!;
+
+    [Parameter] public string? Action { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(Action, "logged-out", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private async Task HandleLogInSucceeded(RemoteAuthenticationState _)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var request = new UserBootstrap
+        {
+            EntraObjectId = Guid.Empty,
+            TenantId = Guid.Empty,
+            UserName = GetClaimValue(user, "preferred_username", ClaimTypes.Name),
+            DisplayName = GetClaimValue(user, "name", ClaimTypes.Name) ?? string.Empty,
+            Email = GetClaimValue(user, "email", ClaimTypes.Email)
+        };
+
+        var apiClient = HttpClientFactory.CreateClient("ApiClient");
+
+        try
+        {
+            using var response = await apiClient.PostAsJsonAsync("api/me/bootstrap", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var exposeDiagnosticDetails = Configuration.GetValue<bool>("Diagnostics:ExposeBootstrapErrorCode");
+                if (exposeDiagnosticDetails)
+                {
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    response.Headers.TryGetValues("WWW-Authenticate", out var wwwAuthenticateHeaderValues);
+                    var wwwAuthenticateHeader = wwwAuthenticateHeaderValues is null
+                        ? "<missing>"
+                        : string.Join(" | ", wwwAuthenticateHeaderValues);
+
+                    Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}; WWW-Authenticate: {wwwAuthenticateHeader}; Body: {responseBody}");
+                }
+                else
+                {
+                    Console.Error.WriteLine($"[AuthSync] User sync failed. Status: {(int)response.StatusCode}");
+                }
+            }
+        }
+        catch (AccessTokenNotAvailableException ex)
+        {
+            ex.Redirect();
+        }
+    }
+
+    private static string? GetClaimValue(ClaimsPrincipal user, params string[] claimTypes)
+    {
+        foreach (var claimType in claimTypes)
+        {
+            var value = user.FindFirst(claimType)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+}
