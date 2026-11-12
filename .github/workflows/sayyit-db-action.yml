@@ -6,12 +6,7 @@ on:
     paths:
       - 'Sayyit.Db/**'
       - '.github/workflows/sayyit-db-action.yml'
-  pull_request:
-    branches: [ 'env/dev', 'main' ]
-    types: [ closed ]
-    paths:
-      - 'Sayyit.Db/**'
-      - '.github/workflows/sayyit-db-action.yml'
+
   workflow_dispatch:
 
 permissions:
@@ -53,16 +48,19 @@ jobs:
             throw "msbuild failed with exit code $LASTEXITCODE"
           }
 
-          $dacpac = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter '*.dacpac' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          $projectFullPath = Join-Path $env:GITHUB_WORKSPACE $project
+          $projectDir = Split-Path -Parent $projectFullPath
+          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($projectFullPath)
+          $dacpac = Join-Path $projectDir "bin/${{ env.CONFIGURATION }}/$projectName.dacpac"
 
-          if (-not $dacpac) {
-            throw "Could not find a generated .dacpac in the repository workspace after build."
+          if (-not (Test-Path $dacpac)) {
+            throw "Could not find DACPAC at expected path: $dacpac"
           }
 
-          Write-Host "Found DACPAC: $($dacpac.FullName)"
+          Write-Host "Found DACPAC: $dacpac"
 
           $dest = Join-Path $env:RUNNER_TEMP '${{ env.DACPAC_NAME }}'
-          Copy-Item -Path $dacpac.FullName -Destination $dest -Force
+          Copy-Item -Path $dacpac -Destination $dest -Force
           Write-Host "Copied DACPAC to: $dest"
 
       - name: Upload DACPAC artifact
@@ -76,9 +74,6 @@ jobs:
     name: Deploy DACPAC to Azure SQL
     needs: build
     runs-on: windows-latest
-
-    # Deploy for a push, a manual dispatch, or a pull request that was merged.
-    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
 
     steps:
       - name: Download DACPAC artifact

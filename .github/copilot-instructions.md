@@ -164,6 +164,7 @@ When generating code, documentation, tests, or refactors, assume the following u
 
 ### Blazor WebAssembly
 - Keep presentation logic in components; move reusable logic to services
+- Always use code-behind files for components that have any code, regardless of how simple the code is.
 - Use typed HTTP clients or well-encapsulated API access layers rather than scattering raw HTTP calls across components
 - Optimize for responsive UI and clear state transitions, especially for moderation flows, voting, and score displays
 - Avoid tightly coupling components to backend response shapes; use view models for clarity
@@ -503,7 +504,6 @@ Sayyit.Web/
 ### Contracts, Presentation Models, and AutoMapper
 - Keep shared API/frontend request and response DTOs in `Sayyit.Contracts`, following the existing DTO guidance.
 - Do not duplicate shared DTOs inside API or Web feature folders.
-- Do not expose EF entities as API contracts.
 - Reuse shared DTOs in Web components where appropriate.
 - Add feature-local presentation models only when the UI needs distinct presentation state or behavior; do not create one-to-one DTO copies without a concrete benefit.
 - Do not add UI-only state to shared contracts merely to avoid a presentation model.

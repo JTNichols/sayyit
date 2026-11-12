@@ -1,0 +1,8 @@
+@using Sayyit.Web.Features.Content.Posts
+
+<section aria-label="Feed">
+    @foreach (var post in Posts)
+    {
+        <Post PostModel="post" />
+    }
+</section>

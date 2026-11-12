@@ -1,0 +1,39 @@
+﻿@if (PostModel is null)
+{
+    <p>Post unavailable.</p>
+}
+else
+{
+    <article class="post">
+        <header class="post__header">
+            <span class="post__user-id">@PostModel.UserId</span>
+        </header>
+
+        <div class="post__body">@PostModel.Body</div>
+
+        <footer class="post__footer" aria-label="Post details">
+            <span>Post #@PostModel.PostId</span>
+
+            <span>
+                Created:
+                <time datetime="@ToUtcIso(PostModel.CreatedUtc)">
+                    @ToLocalDisplay(PostModel.CreatedUtc)
+                </time>
+            </span>
+
+            <span>
+                Updated:
+                @if (PostModel.UpdatedUtc is DateTime updatedUtc)
+                {
+                    <time datetime="@ToUtcIso(updatedUtc)">
+                        @ToLocalDisplay(updatedUtc)
+                    </time>
+                }
+                else
+                {
+                    <span>—</span>
+                }
+            </span>
+        </footer>
+    </article>
+}

@@ -60,6 +60,8 @@
     <Folder Include="auth\" />
     <Folder Include="auth\Tables\" />
     <Folder Include="Security\" />
+    <Folder Include="Scripts" />
+    <Folder Include="Scripts\TestData" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="auth\Tables\Users.sql" />
@@ -69,5 +71,8 @@
     <Build Include="Security\auth.sql" />
     <Build Include="Security\content.sql" />
     <Build Include="auth\Tables\Posts.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <PostDeploy Include="Scripts\TestData\100Posts.PostDeploy.sql" />
   </ItemGroup>
 </Project>
