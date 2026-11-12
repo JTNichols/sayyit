@@ -14,8 +14,9 @@ SET XACT_ABORT ON;
 
 IF NOT EXISTS (SELECT 1 FROM [auth].[Users])
 BEGIN
-    THROW 50001, 'Create at least one user in auth.Users before generating test posts.', 1;
-END;
+    PRINT N'Skipping test-post generation because no users exist.';
+    RETURN;
+END
 
 DECLARE @Alphabet NVARCHAR(100) =
     N'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?';
